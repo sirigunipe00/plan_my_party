@@ -1,93 +1,128 @@
-import 'package:flutter/material.dart';
 import '../models/models.dart';
 
 const eventTypes = [
   'Birthday',
-  'Wedding',
-  'Engagement',
-  'Reception',
   'Anniversary',
   'Baby Shower',
   'Corporate',
   'House Warming',
   'Other',
 ];
-const serviceGroups = <({String name, IconData icon, List<String> items})>[
+
+class Offering {
+  final String id, group, name, detail;
+  final double price;
+  const Offering({
+    required this.id,
+    required this.group,
+    required this.name,
+    required this.detail,
+    required this.price,
+  });
+}
+
+const serviceCatalog = <({String name, String image, String blurb})>[
   (
     name: 'Decoration',
-    icon: Icons.local_florist_outlined,
-    items: [
-      'Flowers',
-      'Balloons',
-      'Stage Decoration',
-      'Entrance Decoration',
-      'Theme Decoration',
-      'Backdrop',
-    ],
+    image: 'decoration.jpg',
+    blurb: 'Flowers, balloons, and the finishing touches',
   ),
   (
-    name: 'Music & sound',
-    icon: Icons.music_note_outlined,
-    items: ['DJ', 'Live Music', 'Speakers', 'Microphones', 'Sound System'],
-  ),
-  (
-    name: 'Photography',
-    icon: Icons.camera_alt_outlined,
-    items: [
-      'Photographer',
-      'Videographer',
-      'Drone',
-      'Candid Photography',
-      'Photo Booth',
-    ],
-  ),
-  (
-    name: 'Food & drinks',
-    icon: Icons.restaurant_outlined,
-    items: [
-      'Catering',
-      'Welcome Drinks',
-      'Snacks',
-      'Vegetarian',
-      'Non-Vegetarian',
-      'Desserts',
-    ],
-  ),
-  (
-    name: 'Furniture & seating',
-    icon: Icons.chair_outlined,
-    items: [
-      'Chairs',
-      'Tables',
-      'Sofas',
-      'Dining Tables',
-      'VIP Seating',
-      'Lounge Furniture',
-    ],
-  ),
-  (
-    name: 'Flooring & staging',
-    icon: Icons.layers_outlined,
-    items: ['Stage', 'Dance Floor', 'Carpet', 'Platform', 'Ramp'],
-  ),
-  (
-    name: 'Tents & shelters',
-    icon: Icons.holiday_village_outlined,
-    items: ['Tent', 'Canopy', 'Waterproof Tent', 'Gazebo'],
-  ),
-  (
-    name: 'Lighting & power',
-    icon: Icons.lightbulb_outline,
-    items: [
-      'Decorative Lights',
-      'Stage Lights',
-      'LED Lights',
-      'Focus Lights',
-      'Generator',
-      'Power Backup',
-    ],
+    name: 'Furniture',
+    image: 'furniture.jpg',
+    blurb: 'Seating, tables, and a comfortable setup',
   ),
 ];
+
+const offerings = <Offering>[
+  Offering(
+    id: 'flowers',
+    group: 'Decoration',
+    name: 'Floral arrangement',
+    detail: 'Fresh flowers for the tables and stage',
+    price: 4500,
+  ),
+  Offering(
+    id: 'balloons',
+    group: 'Decoration',
+    name: 'Balloon styling',
+    detail: 'An arch, clusters, and a color palette',
+    price: 6500,
+  ),
+  Offering(
+    id: 'stage',
+    group: 'Decoration',
+    name: 'Stage backdrop',
+    detail: 'Draped backdrop with soft lighting',
+    price: 12000,
+  ),
+  Offering(
+    id: 'entrance',
+    group: 'Decoration',
+    name: 'Entrance decoration',
+    detail: 'Garlands and a welcome setup',
+    price: 3500,
+  ),
+  Offering(
+    id: 'theme',
+    group: 'Decoration',
+    name: 'Theme styling',
+    detail: 'One coordinated look across the venue',
+    price: 8000,
+  ),
+  Offering(
+    id: 'lights',
+    group: 'Decoration',
+    name: 'Fairy lights',
+    detail: 'Warm decorative lighting',
+    price: 2800,
+  ),
+  Offering(
+    id: 'chairs',
+    group: 'Furniture',
+    name: 'Guest chairs',
+    detail: 'A set of 10 cushioned chairs',
+    price: 2500,
+  ),
+  Offering(
+    id: 'tables',
+    group: 'Furniture',
+    name: 'Banquet table',
+    detail: 'Round table dressed with linen',
+    price: 1800,
+  ),
+  Offering(
+    id: 'sofa',
+    group: 'Furniture',
+    name: 'Lounge sofa',
+    detail: 'A two-seater for a relaxed corner',
+    price: 4000,
+  ),
+  Offering(
+    id: 'dining',
+    group: 'Furniture',
+    name: 'Dining table',
+    detail: 'Seats eight, with place settings',
+    price: 3200,
+  ),
+  Offering(
+    id: 'vip',
+    group: 'Furniture',
+    name: 'VIP seating',
+    detail: 'A dressed seating set for the hosts',
+    price: 7500,
+  ),
+  Offering(
+    id: 'lounge',
+    group: 'Furniture',
+    name: 'Lounge furniture',
+    detail: 'Low tables and extra seating',
+    price: 5400,
+  ),
+];
+
+List<Offering> offeringsFor(String group) =>
+    offerings.where((item) => item.group == group).toList();
 
 const vendors = <Vendor>[
   Vendor(

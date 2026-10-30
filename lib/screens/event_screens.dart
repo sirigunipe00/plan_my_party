@@ -290,21 +290,36 @@ class EventDetailScreen extends StatelessWidget {
           ],
           const SectionTitle('A happy budget'),
           PartyCard(
-            child: Column(
-              children: [
-                InfoPair('Total planned', money(event.budget)),
-                gap12,
-                BudgetBar(event.allocations),
-                gap12,
-                InfoPair('Demo bookings', money(event.bookedTotal)),
-                InfoPair(
-                  event.bookedTotal > event.budget
-                      ? 'Over planned budget'
-                      : 'Still in your plan',
-                  money((event.budget - event.bookedTotal).abs()),
-                ),
-              ],
-            ),
+            child: event.lines.isEmpty
+                ? Column(
+                    children: [
+                      InfoPair('Total planned', money(event.budget)),
+                      gap12,
+                      BudgetBar(event.allocations),
+                      gap12,
+                      InfoPair('Demo bookings', money(event.bookedTotal)),
+                      InfoPair(
+                        event.bookedTotal > event.budget
+                            ? 'Over planned budget'
+                            : 'Still in your plan',
+                        money((event.budget - event.bookedTotal).abs()),
+                      ),
+                    ],
+                  )
+                : Column(
+                    children: [
+                      ...event.lines.map(
+                        (line) => Padding(
+                          padding: const EdgeInsets.only(bottom: 8),
+                          child: InfoPair(
+                            '${line.group} · ${line.name} × ${line.quantity}',
+                            money(line.total),
+                          ),
+                        ),
+                      ),
+                      InfoPair('Total', money(event.itemsTotal)),
+                    ],
+                  ),
           ),
           SectionTitle(
             'Your party people',

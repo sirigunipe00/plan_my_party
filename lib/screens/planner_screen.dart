@@ -7,7 +7,10 @@ import '../models/models.dart';
 import '../state/app_store.dart';
 import '../theme/app_theme.dart';
 import '../widgets/common.dart';
+import '../widgets/venue_picker.dart';
 import 'event_screens.dart';
+import 'service_items_screen.dart';
+import 'upi_checkout.dart';
 import 'vendor_screens.dart';
 
 Future<void> openPlanner(
@@ -64,19 +67,14 @@ class _PlannerScreenState extends State<PlannerScreen> {
           onPressed: () => step > 0 ? move(step - 1) : Navigator.pop(context),
         ),
         title: Text(
-          [
-            'Plan a celebration',
-            'A little of everything',
-            'Make every rupee count',
-            'One last happy check',
-          ][step],
+          ['Plan a celebration', 'Services', 'Review & checkout'][step],
         ),
         actions: [
           Padding(
             padding: const EdgeInsets.only(right: 18),
             child: Center(
               child: Text(
-                '${step + 1} / 4',
+                '${step + 1} / 3',
                 style: const TextStyle(fontSize: 11, color: AppColors.muted),
               ),
             ),
@@ -96,10 +94,10 @@ class _PlannerScreenState extends State<PlannerScreen> {
                 children: [
                   Row(
                     children: List.generate(
-                      4,
+                      3,
                       (i) => Expanded(
                         child: Padding(
-                          padding: EdgeInsets.only(right: i < 3 ? 6 : 0),
+                          padding: EdgeInsets.only(right: i < 2 ? 6 : 0),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
@@ -117,8 +115,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
                                 [
                                   '1. The basics',
                                   '2. Services',
-                                  '3. Budget',
-                                  '4. Review',
+                                  '3. Checkout',
                                 ][i],
                                 style: TextStyle(
                                   fontSize: 9,
@@ -136,8 +133,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
                   gap24,
                   if (step == 0) _basics(),
                   if (step == 1) _services(),
-                  if (step == 2) _budget(),
-                  if (step == 3) _review(),
+                  if (step == 2) _review(),
                 ],
               ),
             ),
@@ -153,14 +149,9 @@ class _PlannerScreenState extends State<PlannerScreen> {
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 13),
             child: PrimaryButton(
-              [
-                'Choose your services',
-                'Let’s talk budget',
-                'Review my celebration',
-                'Save my celebration',
-              ][step],
-              icon: step == 3
-                  ? Icons.auto_awesome_outlined
+              ['Choose your services', 'Review celebration', 'Checkout'][step],
+              icon: step == 2
+                  ? Icons.account_balance_wallet_outlined
                   : Icons.arrow_forward,
               onPressed: _next,
             ),
@@ -229,12 +220,13 @@ class _PlannerScreenState extends State<PlannerScreen> {
         Wrap(
           spacing: 8,
           runSpacing: 4,
-          children: eventTypes
+          children: (draft.occasionChosen ? [draft.type] : eventTypes)
               .map(
                 (t) => ChoiceChip(
                   label: Text(t),
                   selected: draft.type == t,
                   onSelected: (_) {
+                    if (draft.occasionChosen) return;
                     setState(() => draft.type = t);
                     save();
                   },
@@ -283,14 +275,20 @@ class _PlannerScreenState extends State<PlannerScreen> {
           ],
         ),
         gap24,
-        _field(
-          'Where’s the party?',
-          'event-location',
-          draft.location,
-          (v) => draft.location = v,
-          validator: requiredText,
-          maxLength: 180,
+        VenuePicker(
+          location: draft.location,
+          latitude: draft.latitude,
+          longitude: draft.longitude,
+          onPicked: (place) {
+            setState(() {
+              draft.location = place.label;
+              draft.latitude = place.latitude;
+              draft.longitude = place.longitude;
+            });
+            save();
+          },
         ),
+        gap24,
         _field(
           'How many guests?',
           'event-guests',
@@ -379,10 +377,12 @@ class _PlannerScreenState extends State<PlannerScreen> {
     children: [
       const PageHeading(
         'Build your\nkind of celebration.',
-        subtitle: 'Pick the services you need. You can mix and match.',
+        subtitle: 'Decoration and furniture. Tap a photo to add what you need.',
       ),
       Text(
-        '${draft.services.length} services selected',
+        draft.lines.isEmpty
+            ? 'Your budget updates as you add items.'
+            : 'Budget so far  ${money(draft.itemsTotal)}',
         style: const TextStyle(
           fontSize: 12,
           color: AppColors.purple,
@@ -390,303 +390,153 @@ class _PlannerScreenState extends State<PlannerScreen> {
         ),
       ),
       gap16,
-      ...serviceGroups.map(
-        (group) => Padding(
-          padding: const EdgeInsets.only(bottom: 23),
+      ...serviceCatalog.map(_serviceCard),
+    ],
+  );
+
+  Widget _serviceCard(({String name, String image, String blurb}) group) {
+    final added = draft.lines.where((line) => line.group == group.name);
+    final count = added.fold<int>(0, (sum, line) => sum + line.quantity);
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: Material(
+        key: ValueKey('service-${group.name}'),
+        color: Colors.white,
+        clipBehavior: Clip.antiAlias,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(22),
+          side: const BorderSide(color: AppColors.line),
+        ),
+        child: InkWell(
+          onTap: () async {
+            await pushPage(
+              context,
+              ServiceItemsScreen(
+                store: widget.store,
+                draft: draft,
+                group: group.name,
+              ),
+            );
+            if (mounted) setState(() {});
+          },
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
-                children: [
-                  Icon(group.icon, size: 19, color: AppColors.purple),
-                  const SizedBox(width: 9),
-                  Text(
-                    group.name,
-                    style: Theme.of(context).textTheme.titleMedium,
-                  ),
-                ],
+              Image.asset(
+                'assets/images/${group.image}',
+                height: 156,
+                width: double.infinity,
+                fit: BoxFit.cover,
               ),
-              gap8,
-              Wrap(
-                spacing: 8,
-                runSpacing: 4,
-                children: group.items
-                    .map(
-                      (item) => FilterChip(
-                        label: Text(item),
-                        selected: draft.services.contains(item),
-                        onSelected: (value) {
-                          setState(() {
-                            value
-                                ? draft.services.add(item)
-                                : draft.services.remove(item);
-                          });
-                          save();
-                        },
+              Padding(
+                padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            group.name,
+                            style: Theme.of(context).textTheme.titleMedium,
+                          ),
+                          gap8,
+                          Text(
+                            count == 0
+                                ? group.blurb
+                                : '$count added · ${money(added.fold<double>(0, (sum, line) => sum + line.total))}',
+                            style: const TextStyle(fontSize: 11),
+                          ),
+                        ],
                       ),
-                    )
-                    .toList(),
+                    ),
+                    const Icon(Icons.chevron_right, color: AppColors.muted),
+                  ],
+                ),
               ),
             ],
           ),
         ),
       ),
-      PartyCard(
-        onTap: () async {
-          await pushPage(
-            context,
-            BalloonsScreen(store: widget.store, draft: draft),
-          );
-          if (mounted) setState(() {});
-        },
-        child: const Row(
+    );
+  }
+
+  Widget _review() {
+    final groups = ['Decoration', 'Furniture'];
+    return Column(
+      key: const ValueKey('review'),
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const PageHeading(
+          'Looking good.\nReady to make it happen?',
+          subtitle:
+              'Check the details, the items, and your budget before checkout.',
+        ),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(19),
+          child: Image.asset(
+            'assets/images/${draft.image}',
+            height: 148,
+            width: double.infinity,
+            fit: BoxFit.cover,
+          ),
+        ),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Icon(Icons.palette_outlined, color: AppColors.purple),
-            SizedBox(width: 13),
-            Expanded(
+            StatusBadge(draft.type),
+            TextButton(
+              onPressed: () => move(0),
+              child: const Text('Edit details'),
+            ),
+          ],
+        ),
+        Text(draft.name, style: Theme.of(context).textTheme.titleLarge),
+        gap24,
+        EventFacts(draft),
+        if (draft.description.isNotEmpty) Text(draft.description),
+        SectionTitle(
+          'Your party essentials',
+          action: 'Edit',
+          onAction: () => move(1),
+        ),
+        ...groups.map((group) {
+          final items = draft.lines
+              .where((line) => line.group == group)
+              .toList();
+          if (items.isEmpty) return const SizedBox.shrink();
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: PartyCard(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    'Make it a little more you',
-                    style: TextStyle(
-                      color: AppColors.ink,
-                      fontWeight: FontWeight.w700,
+                  Text(group, style: Theme.of(context).textTheme.titleMedium),
+                  gap12,
+                  ...items.map(
+                    (line) => Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: InfoPair(
+                        '${line.name} × ${line.quantity}',
+                        money(line.total),
+                      ),
                     ),
-                  ),
-                  Text(
-                    'Customize balloons, colors & inspiration',
-                    style: TextStyle(fontSize: 11),
                   ),
                 ],
               ),
             ),
-            Icon(Icons.chevron_right),
-          ],
+          );
+        }),
+        const SectionTitle('Your budget'),
+        PartyCard(child: InfoPair('Total', money(draft.itemsTotal))),
+        const DemoNotice(
+          text:
+              'Checkout opens a UPI app so you can pay this total. Your celebration is saved on this device.',
         ),
-      ),
-    ],
-  );
-  Widget _budget() => Column(
-    key: const ValueKey('budget'),
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      const PageHeading(
-        'A beautiful party.\nA comfortable budget.',
-        subtitle: 'Set your total, then decide what matters most.',
-      ),
-      Container(
-        padding: const EdgeInsets.all(23),
-        decoration: BoxDecoration(
-          color: AppColors.deep,
-          borderRadius: BorderRadius.circular(22),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Your total event budget (₹)',
-              style: TextStyle(fontSize: 12, color: Color(0xffD1C3E7)),
-            ),
-            gap12,
-            TextFormField(
-              key: const ValueKey('total-budget'),
-              initialValue: draft.budget.toInt().toString(),
-              keyboardType: TextInputType.number,
-              style: const TextStyle(
-                fontSize: 31,
-                fontWeight: FontWeight.w700,
-                color: Colors.white,
-              ),
-              decoration: const InputDecoration(
-                filled: false,
-                border: UnderlineInputBorder(),
-                enabledBorder: UnderlineInputBorder(
-                  borderSide: BorderSide(color: Color(0x44FFFFFF)),
-                ),
-                focusedBorder: UnderlineInputBorder(
-                  borderSide: BorderSide(color: Colors.white),
-                ),
-                contentPadding: EdgeInsets.only(bottom: 9),
-              ),
-              onChanged: (v) {
-                setState(() => draft.budget = double.tryParse(v) ?? 0);
-                save();
-              },
-            ),
-            gap24,
-            BudgetBar(draft.allocations),
-            gap12,
-            const Text(
-              'A little room for everything you love.',
-              style: TextStyle(fontSize: 11, color: Color(0xffD1C3E7)),
-            ),
-          ],
-        ),
-      ),
-      SectionTitle(
-        'Your budget breakdown',
-        action: 'Reset split',
-        onAction: () {
-          setState(() => draft.allocations = defaultAllocations());
-          save();
-        },
-      ),
-      ...draft.allocations.asMap().entries.map((entry) {
-        final a = entry.value;
-        return Padding(
-          padding: const EdgeInsets.only(bottom: 19),
-          child: Column(
-            children: [
-              Row(
-                children: [
-                  Container(
-                    width: 9,
-                    height: 9,
-                    decoration: BoxDecoration(
-                      color: Color(a.color),
-                      shape: BoxShape.circle,
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Text(
-                      a.name,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w600,
-                        fontSize: 12,
-                        color: AppColors.ink,
-                      ),
-                    ),
-                  ),
-                  Text(
-                    money(draft.budget * a.percent / 100),
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: AppColors.ink,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ],
-              ),
-              gap8,
-              Row(
-                children: [
-                  const Expanded(
-                    child: Text(
-                      'Share of your total budget',
-                      style: TextStyle(fontSize: 10),
-                    ),
-                  ),
-                  SizedBox(
-                    width: 75,
-                    child: TextFormField(
-                      key: ValueKey('allocation-${entry.key}-${a.hashCode}'),
-                      initialValue: a.percent.toStringAsFixed(
-                        a.percent % 1 == 0 ? 0 : 1,
-                      ),
-                      keyboardType: const TextInputType.numberWithOptions(
-                        decimal: true,
-                      ),
-                      decoration: const InputDecoration(
-                        contentPadding: EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 8,
-                        ),
-                        suffixText: '%',
-                      ),
-                      onChanged: (v) {
-                        setState(() => a.percent = double.tryParse(v) ?? 0);
-                        save();
-                      },
-                    ),
-                  ),
-                ],
-              ),
-              const Divider(),
-            ],
-          ),
-        );
-      }),
-      Center(
-        child: Text(
-          '${draft.allocatedPercent.toStringAsFixed(0)}% allocated ${(draft.allocatedPercent - 100).abs() < .001 ? '· Looking good!' : '· Adjust your split to 100%'}',
-          style: TextStyle(
-            fontSize: 12,
-            color: (draft.allocatedPercent - 100).abs() < .001
-                ? AppColors.green
-                : Colors.redAccent,
-          ),
-        ),
-      ),
-    ],
-  );
-  Widget _review() => Column(
-    key: const ValueKey('review'),
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      const PageHeading(
-        'Looking good.\nReady to make it happen?',
-        subtitle: 'Check your details before saving your celebration.',
-      ),
-      ClipRRect(
-        borderRadius: BorderRadius.circular(19),
-        child: Image.asset(
-          'assets/images/${draft.image}',
-          height: 148,
-          width: double.infinity,
-          fit: BoxFit.cover,
-        ),
-      ),
-      Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          StatusBadge(draft.type),
-          TextButton(
-            onPressed: () => move(0),
-            child: const Text('Edit details'),
-          ),
-        ],
-      ),
-      Text(draft.name, style: Theme.of(context).textTheme.titleLarge),
-      gap24,
-      EventFacts(draft),
-      if (draft.description.isNotEmpty) Text(draft.description),
-      SectionTitle(
-        'Your party essentials',
-        action: 'Edit',
-        onAction: () => move(1),
-      ),
-      Wrap(
-        spacing: 7,
-        runSpacing: 6,
-        children: draft.services
-            .map(
-              (s) => Chip(label: Text(s), backgroundColor: AppColors.lavender),
-            )
-            .toList(),
-      ),
-      const SectionTitle('A happy budget'),
-      PartyCard(
-        child: Column(
-          children: [
-            InfoPair('Total event budget', money(draft.budget)),
-            gap12,
-            BudgetBar(draft.allocations),
-            gap8,
-            const Text(
-              '6 categories · 100% allocated',
-              style: TextStyle(fontSize: 11),
-            ),
-          ],
-        ),
-      ),
-      const DemoNotice(
-        text:
-            'Your event is saved on this device. Vendors, quotes and bookings are demonstrations.',
-      ),
-    ],
-  );
+      ],
+    );
+  }
+
   Future<void> _next() async {
     if (step == 0) {
       if (!form.currentState!.validate()) return;
@@ -695,35 +545,66 @@ class _PlannerScreenState extends State<PlannerScreen> {
         notify(context, error);
         return;
       }
-    }
-    if (step == 1 && draft.services.isEmpty) {
-      notify(context, 'Choose at least one service.');
-      return;
-    }
-    if (step == 2) {
-      final error = draft.validateBudget();
-      if (error != null) {
-        notify(context, error);
+      if (draft.latitude == null || draft.longitude == null) {
+        notify(context, 'Search the map and choose a venue.');
         return;
       }
     }
-    if (step < 3) {
+    if (step == 1 && draft.lines.isEmpty) {
+      notify(context, 'Add at least one decoration or furniture item.');
+      return;
+    }
+    if (step < 2) {
+      if (step == 1) draft.applyLines();
       await widget.store.persist();
       if (mounted) move(step + 1);
       return;
     }
+    await _checkout();
+  }
+
+  Future<void> _checkout() async {
+    draft.applyLines();
+    final error = draft.validateBasics() ?? draft.validateBudget();
+    if (error != null) {
+      notify(context, error);
+      return;
+    }
+    final app = await showUpiCheckout(
+      context,
+      amount: draft.itemsTotal,
+      note: draft.name.trim().isEmpty ? draft.type : draft.name.trim(),
+    );
+    if (app == null || !mounted) return;
+    final navigator = Navigator.of(context);
+    final messenger = ScaffoldMessenger.of(context);
+    late final String eventId;
     try {
-      final event = widget.store.saveEvent();
+      eventId = widget.store.saveEvent().id;
       await widget.store.persist();
-      if (!mounted) return;
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(
-          builder: (_) => CreatedScreen(store: widget.store, eventId: event.id),
-        ),
-      );
     } catch (e) {
       if (mounted) notify(context, e.toString());
+      return;
     }
+    final opened = await openUpiApp(
+      app: app,
+      amount: draft.itemsTotal,
+      note: draft.name.trim().isEmpty ? draft.type : draft.name.trim(),
+    );
+    if (!opened) {
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text(
+            'That UPI app could not be opened. Your celebration is saved.',
+          ),
+        ),
+      );
+    }
+    navigator.pushReplacement(
+      MaterialPageRoute(
+        builder: (_) => CreatedScreen(store: widget.store, eventId: eventId),
+      ),
+    );
   }
 }
 

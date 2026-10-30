@@ -237,7 +237,7 @@ class ProfileScreen extends StatelessWidget {
             ),
             gap8,
             Text(
-              'Tap Plan an event, add the details, choose services and set a budget. Your draft saves as you go.',
+              'Tap Plan an event, add the details, choose a venue on the map, then add decoration and furniture. Your budget follows the items you add.',
             ),
             gap16,
             Text(

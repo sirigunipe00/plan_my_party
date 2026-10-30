@@ -139,7 +139,10 @@ class AppStore extends ChangeNotifier {
 
   EventPlan startDraft([String? type]) {
     draft ??= EventPlan();
-    if (type != null) draft!.type = type;
+    if (type != null) {
+      draft!.type = type;
+      draft!.occasionChosen = true;
+    }
     changed();
     return draft!;
   }
@@ -147,9 +150,12 @@ class AppStore extends ChangeNotifier {
   EventPlan saveEvent() {
     final source = draft;
     if (source == null) throw StateError('No event draft');
+    if (source.lines.isNotEmpty) source.applyLines();
     final error =
         source.validateBasics() ??
-        (source.services.isEmpty
+        (source.lines.isNotEmpty
+            ? null
+            : source.services.isEmpty
             ? 'Choose at least one service.'
             : source.validateBudget());
     if (error != null) throw StateError(error);

@@ -18,6 +18,11 @@ void main() {
     final fonts = FontLoader('DMSans')
       ..addFont(rootBundle.load('assets/fonts/dm-sans.ttf'));
     await fonts.load();
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(
+          const MethodChannel('plugins.flutter.io/url_launcher'),
+          (call) async => true,
+        );
   });
   late AppStore store;
   setUp(() async {
@@ -26,7 +31,7 @@ void main() {
   });
   tearDown(() => store.dispose());
 
-  testWidgets('guest can create a celebration through all four steps', (
+  testWidgets('guest can plan a celebration and open UPI checkout', (
     tester,
   ) async {
     tester.view.physicalSize = const Size(390, 844);
@@ -39,8 +44,17 @@ void main() {
     await tester.tap(find.text('Explore as a guest →'));
     await tester.pumpAndSettle();
     expect(find.text('Hello, Ananya ✦'), findsOneWidget);
+    expect(find.text('Wedding'), findsNothing);
     await tester.tap(find.text('Plan an event'));
     await tester.pumpAndSettle();
+    store.draft!
+      ..latitude = 17.4156
+      ..longitude = 78.4347
+      ..location = 'Banjara Hills, Hyderabad';
+    expect(find.text('Wedding'), findsNothing);
+    expect(find.text('Engagement'), findsNothing);
+    expect(find.text('Reception'), findsNothing);
+    expect(find.text('Anniversary'), findsWidgets);
     await tester.enterText(
       find.byKey(const ValueKey('event-name')),
       'Sunny’s birthday',
@@ -49,20 +63,24 @@ void main() {
     await tester.tap(find.text('Choose your services'));
     await tester.pumpAndSettle();
     expect(find.text('Build your\nkind of celebration.'), findsOneWidget);
-    await tester.tap(find.text('Let’s talk budget'));
+    await tester.tap(find.byKey(const ValueKey('service-Decoration')));
     await tester.pumpAndSettle();
-    await tester.enterText(
-      find.byKey(const ValueKey('total-budget')),
-      '125000',
-    );
-    await tester.tap(find.text('Review my celebration'));
+    await tester.tap(find.byKey(const ValueKey('add-flowers')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Done'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Review celebration'));
     await tester.pumpAndSettle();
     expect(find.text('Sunny’s birthday'), findsOneWidget);
-    await tester.tap(find.text('Save my celebration'));
+    expect(find.text('Floral arrangement × 1'), findsOneWidget);
+    await tester.tap(find.text('Checkout'));
+    await tester.pumpAndSettle();
+    expect(find.text('Pay with UPI'), findsOneWidget);
+    await tester.tap(find.text('Google Pay'));
     await tester.pumpAndSettle();
     expect(store.events.first.name, 'Sunny’s birthday');
     expect(store.events.first.guests, 90);
-    expect(store.events.first.budget, 125000);
+    expect(store.events.first.budget, 4500);
     expect(store.draft, isNull);
     expect(
       find.text('It’s a plan.\nAnd it’s going to be lovely.'),
@@ -70,6 +88,26 @@ void main() {
     );
     expect(tester.takeException(), isNull);
     await store.persist();
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('a chosen occasion is the only one on the celebration screen', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    store.onboarded = true;
+    await tester.pumpWidget(PartyApp(store: store));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Birthday'));
+    await tester.pumpAndSettle();
+    expect(find.text('Birthday'), findsWidgets);
+    expect(find.text('Corporate'), findsNothing);
+    expect(find.text('Baby Shower'), findsNothing);
+    expect(store.draft!.occasionChosen, isTrue);
+    expect(tester.takeException(), isNull);
     await tester.pumpWidget(const SizedBox());
   });
 

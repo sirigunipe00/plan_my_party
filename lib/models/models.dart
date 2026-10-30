@@ -128,13 +128,43 @@ class QuoteRequest {
   );
 }
 
+class ServiceLine {
+  final String id, group, name;
+  final double price;
+  int quantity;
+  ServiceLine({
+    required this.id,
+    required this.group,
+    required this.name,
+    required this.price,
+    this.quantity = 1,
+  });
+  double get total => price * quantity;
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'group': group,
+    'name': name,
+    'price': price,
+    'quantity': quantity,
+  };
+  factory ServiceLine.fromJson(Map<String, dynamic> j) => ServiceLine(
+    id: j['id'] as String,
+    group: j['group'] as String? ?? '',
+    name: j['name'] as String? ?? '',
+    price: (j['price'] as num? ?? 0).toDouble(),
+    quantity: j['quantity'] as int? ?? 1,
+  );
+}
+
 class EventPlan {
   String id, name, type, start, end, location, description, status;
   DateTime date, created;
   int guests;
   double budget;
-  bool sample;
+  bool sample, occasionChosen;
+  double? latitude, longitude;
   List<String> services, quotes;
+  List<ServiceLine> lines;
   List<Allocation> allocations;
   List<DemoBooking> bookings;
   List<QuoteRequest> requests;
@@ -152,8 +182,12 @@ class EventPlan {
     this.budget = 100000,
     this.status = 'Upcoming',
     this.sample = false,
+    this.occasionChosen = false,
+    this.latitude,
+    this.longitude,
     DateTime? created,
     List<String>? services,
+    List<ServiceLine>? lines,
     List<Allocation>? allocations,
     List<String>? quotes,
     List<DemoBooking>? bookings,
@@ -171,11 +205,19 @@ class EventPlan {
              'Chairs',
              'LED Lights',
            ],
+       lines = lines ?? [],
        allocations = allocations ?? defaultAllocations(),
        quotes = quotes ?? [],
        bookings = bookings ?? [],
        requests = requests ?? [],
        balloons = balloons ?? BalloonSpec();
+  double get itemsTotal => lines.fold(0, (sum, line) => sum + line.total);
+  void applyLines() {
+    if (lines.isEmpty) return;
+    budget = itemsTotal;
+    services = lines.map((line) => line.name).toList();
+  }
+
   double get bookedTotal => bookings.fold(0, (sum, b) => sum + b.amount);
   double get allocatedPercent =>
       allocations.fold(0, (sum, a) => sum + a.percent);
@@ -202,6 +244,12 @@ class EventPlan {
   }
 
   String? validateBudget() {
+    if (lines.isNotEmpty) {
+      if (!itemsTotal.isFinite || itemsTotal <= 0) {
+        return 'Add at least one decoration or furniture item.';
+      }
+      return null;
+    }
     if (!budget.isFinite || budget < 1000 || budget > 100000000) {
       return 'Choose a budget from ₹1,000 to ₹10,00,00,000.';
     }
@@ -230,8 +278,12 @@ class EventPlan {
     'budget': budget,
     'status': status,
     'sample': sample,
+    'occasionChosen': occasionChosen,
+    'latitude': latitude,
+    'longitude': longitude,
     'created': created.toIso8601String(),
     'services': services,
+    'lines': lines.map((line) => line.toJson()).toList(),
     'quotes': quotes,
     'allocations': allocations.map((a) => a.toJson()).toList(),
     'bookings': bookings.map((b) => b.toJson()).toList(),
@@ -251,8 +303,17 @@ class EventPlan {
     budget: (j['budget'] as num? ?? 100000).toDouble(),
     status: j['status'] as String? ?? 'Upcoming',
     sample: j['sample'] as bool? ?? false,
+    occasionChosen: j['occasionChosen'] as bool? ?? false,
+    latitude: (j['latitude'] as num?)?.toDouble(),
+    longitude: (j['longitude'] as num?)?.toDouble(),
     created: DateTime.tryParse(j['created'] as String? ?? '') ?? DateTime.now(),
     services: List<String>.from(j['services'] ?? []),
+    lines: (j['lines'] as List? ?? [])
+        .map(
+          (line) =>
+              ServiceLine.fromJson(Map<String, dynamic>.from(line as Map)),
+        )
+        .toList(),
     quotes: List<String>.from(j['quotes'] ?? []),
     allocations: (j['allocations'] as List? ?? [])
         .map((a) => Allocation.fromJson(Map<String, dynamic>.from(a as Map)))

@@ -170,7 +170,11 @@ class HomeScreen extends StatelessWidget {
           children:
               [
                     ('Birthday', Icons.cake_outlined, const Color(0xffF7E7DE)),
-                    ('Wedding', Icons.favorite_border, const Color(0xffF5E5EC)),
+                    (
+                      'Anniversary',
+                      Icons.celebration_outlined,
+                      const Color(0xffF5E5EC),
+                    ),
                     ('Corporate', Icons.work_outline, const Color(0xffE6EDE8)),
                     ('More', Icons.grid_view_rounded, const Color(0xffEBE5F6)),
                   ]
