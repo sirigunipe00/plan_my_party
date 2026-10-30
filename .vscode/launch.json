@@ -1,0 +1,7 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {"name": "Plan My Party", "request": "launch", "type": "dart", "program": "lib/main.dart"},
+    {"name": "Plan My Party (profile mode)", "request": "launch", "type": "dart", "flutterMode": "profile", "program": "lib/main.dart"}
+  ]
+}

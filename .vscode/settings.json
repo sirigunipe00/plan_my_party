@@ -1,0 +1,8 @@
+{
+  "editor.formatOnSave": true,
+  "[dart]": {
+    "editor.defaultFormatter": "Dart-Code.dart-code"
+  },
+  "dart.lineLength": 100,
+  "dart.flutterSdkPath": ".fvm/versions/3.47.9"
+}
