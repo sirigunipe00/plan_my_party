@@ -9,15 +9,11 @@ import '../theme/app_theme.dart';
 import '../widgets/common.dart';
 import '../widgets/venue_picker.dart';
 import 'event_screens.dart';
+import 'payment_gateway.dart';
 import 'service_items_screen.dart';
-import 'upi_checkout.dart';
 import 'vendor_screens.dart';
 
-Future<void> openPlanner(
-  BuildContext context,
-  AppStore store, {
-  String? type,
-}) async {
+Future<void> openPlanner(BuildContext context, AppStore store, {String? type}) async {
   store.startDraft(type);
   await pushPage(context, PlannerScreen(store: store));
 }
@@ -66,9 +62,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
           icon: const Icon(Icons.arrow_back_rounded),
           onPressed: () => step > 0 ? move(step - 1) : Navigator.pop(context),
         ),
-        title: Text(
-          ['Plan a celebration', 'Services', 'Review & checkout'][step],
-        ),
+        title: Text(['Plan a celebration', 'Services', 'Review & checkout'][step]),
         actions: [
           Padding(
             padding: const EdgeInsets.only(right: 18),
@@ -104,24 +98,16 @@ class _PlannerScreenState extends State<PlannerScreen> {
                               Container(
                                 height: 3,
                                 decoration: BoxDecoration(
-                                  color: i <= step
-                                      ? AppColors.purple
-                                      : AppColors.line,
+                                  color: i <= step ? AppColors.purple : AppColors.line,
                                   borderRadius: BorderRadius.circular(5),
                                 ),
                               ),
                               gap8,
                               Text(
-                                [
-                                  '1. The basics',
-                                  '2. Services',
-                                  '3. Checkout',
-                                ][i],
+                                ['1. The basics', '2. Services', '3. Checkout'][i],
                                 style: TextStyle(
                                   fontSize: 9,
-                                  color: i <= step
-                                      ? AppColors.purple
-                                      : AppColors.muted,
+                                  color: i <= step ? AppColors.purple : AppColors.muted,
                                 ),
                               ),
                             ],
@@ -150,9 +136,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
             padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 13),
             child: PrimaryButton(
               ['Choose your services', 'Review celebration', 'Checkout'][step],
-              icon: step == 2
-                  ? Icons.account_balance_wallet_outlined
-                  : Icons.arrow_forward,
+              icon: step == 2 ? Icons.account_balance_wallet_outlined : Icons.arrow_forward,
               onPressed: _next,
             ),
           ),
@@ -174,10 +158,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
     child: TextFormField(
       key: ValueKey(key),
       initialValue: value,
-      decoration: InputDecoration(
-        labelText: label,
-        alignLabelWithHint: maxLines > 1,
-      ),
+      decoration: InputDecoration(labelText: label, alignLabelWithHint: maxLines > 1),
       keyboardType: keyboard,
       maxLines: maxLines,
       maxLength: maxLength,
@@ -210,11 +191,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
         ),
         const Text(
           'What are we celebrating?',
-          style: TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.w600,
-            color: AppColors.ink,
-          ),
+          style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.ink),
         ),
         gap8,
         Wrap(
@@ -235,23 +212,18 @@ class _PlannerScreenState extends State<PlannerScreen> {
               .toList(),
         ),
         gap24,
-        _picker(
-          Icons.calendar_month_outlined,
-          'Event date',
-          dateLabel(draft.date),
-          () async {
-            final picked = await showDatePicker(
-              context: context,
-              initialDate: draft.date,
-              firstDate: DateTime(2020),
-              lastDate: DateTime(2100),
-            );
-            if (picked != null && mounted) {
-              setState(() => draft.date = picked);
-              save();
-            }
-          },
-        ),
+        _picker(Icons.calendar_month_outlined, 'Event date', dateLabel(draft.date), () async {
+          final picked = await showDatePicker(
+            context: context,
+            initialDate: draft.date,
+            firstDate: DateTime(2020),
+            lastDate: DateTime(2100),
+          );
+          if (picked != null && mounted) {
+            setState(() => draft.date = picked);
+            save();
+          }
+        }),
         gap16,
         Row(
           children: [
@@ -297,9 +269,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
           keyboard: TextInputType.number,
           validator: (v) {
             final n = int.tryParse(v ?? '');
-            return n == null || n < 1 || n > 10000
-                ? 'Enter 1 to 10,000 guests.'
-                : null;
+            return n == null || n < 1 || n > 10000 ? 'Enter 1 to 10,000 guests.' : null;
           },
         ),
         _field(
@@ -310,19 +280,11 @@ class _PlannerScreenState extends State<PlannerScreen> {
           maxLines: 3,
           maxLength: 1000,
         ),
-        const Text(
-          'Your draft saves automatically as you go.',
-          style: TextStyle(fontSize: 11),
-        ),
+        const Text('Your draft saves automatically as you go.', style: TextStyle(fontSize: 11)),
       ],
     ),
   );
-  Widget _picker(
-    IconData icon,
-    String label,
-    String value,
-    VoidCallback onTap,
-  ) => PartyCard(
+  Widget _picker(IconData icon, String label, String value, VoidCallback onTap) => PartyCard(
     padding: const EdgeInsets.all(13),
     onTap: onTap,
     child: Row(
@@ -349,10 +311,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
     ),
   );
   Future<void> _chooseTime(bool start) async {
-    final parts = (start ? draft.start : draft.end)
-        .split(':')
-        .map(int.parse)
-        .toList();
+    final parts = (start ? draft.start : draft.end).split(':').map(int.parse).toList();
     final value = await showTimePicker(
       context: context,
       initialTime: TimeOfDay(hour: parts[0], minute: parts[1]),
@@ -383,11 +342,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
         draft.lines.isEmpty
             ? 'Your budget updates as you add items.'
             : 'Budget so far  ${money(draft.itemsTotal)}',
-        style: const TextStyle(
-          fontSize: 12,
-          color: AppColors.purple,
-          fontWeight: FontWeight.w600,
-        ),
+        style: const TextStyle(fontSize: 12, color: AppColors.purple, fontWeight: FontWeight.w600),
       ),
       gap16,
       ...serviceCatalog.map(_serviceCard),
@@ -411,11 +366,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
           onTap: () async {
             await pushPage(
               context,
-              ServiceItemsScreen(
-                store: widget.store,
-                draft: draft,
-                group: group.name,
-              ),
+              ServiceItemsScreen(store: widget.store, draft: draft, group: group.name),
             );
             if (mounted) setState(() {});
           },
@@ -436,10 +387,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            group.name,
-                            style: Theme.of(context).textTheme.titleMedium,
-                          ),
+                          Text(group.name, style: Theme.of(context).textTheme.titleMedium),
                           gap8,
                           Text(
                             count == 0
@@ -469,8 +417,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
       children: [
         const PageHeading(
           'Looking good.\nReady to make it happen?',
-          subtitle:
-              'Check the details, the items, and your budget before checkout.',
+          subtitle: 'Check the details, the items, and your budget before checkout.',
         ),
         ClipRRect(
           borderRadius: BorderRadius.circular(19),
@@ -485,25 +432,16 @@ class _PlannerScreenState extends State<PlannerScreen> {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             StatusBadge(draft.type),
-            TextButton(
-              onPressed: () => move(0),
-              child: const Text('Edit details'),
-            ),
+            TextButton(onPressed: () => move(0), child: const Text('Edit details')),
           ],
         ),
         Text(draft.name, style: Theme.of(context).textTheme.titleLarge),
         gap24,
         EventFacts(draft),
         if (draft.description.isNotEmpty) Text(draft.description),
-        SectionTitle(
-          'Your party essentials',
-          action: 'Edit',
-          onAction: () => move(1),
-        ),
+        SectionTitle('Your party essentials', action: 'Edit', onAction: () => move(1)),
         ...groups.map((group) {
-          final items = draft.lines
-              .where((line) => line.group == group)
-              .toList();
+          final items = draft.lines.where((line) => line.group == group).toList();
           if (items.isEmpty) return const SizedBox.shrink();
           return Padding(
             padding: const EdgeInsets.only(bottom: 12),
@@ -516,10 +454,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
                   ...items.map(
                     (line) => Padding(
                       padding: const EdgeInsets.only(bottom: 8),
-                      child: InfoPair(
-                        '${line.name} × ${line.quantity}',
-                        money(line.total),
-                      ),
+                      child: InfoPair('${line.name} × ${line.quantity}', money(line.total)),
                     ),
                   ),
                 ],
@@ -531,7 +466,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
         PartyCard(child: InfoPair('Total', money(draft.itemsTotal))),
         const DemoNotice(
           text:
-              'Checkout opens a UPI app so you can pay this total. Your celebration is saved on this device.',
+              'Checkout takes payment on this phone through the payment gateway. Your celebration is saved on this device.',
         ),
       ],
     );
@@ -570,14 +505,15 @@ class _PlannerScreenState extends State<PlannerScreen> {
       notify(context, error);
       return;
     }
-    final app = await showUpiCheckout(
+    final paid = await pushPage<bool>(
       context,
-      amount: draft.itemsTotal,
-      note: draft.name.trim().isEmpty ? draft.type : draft.name.trim(),
+      PaymentGatewayScreen(
+        amount: draft.itemsTotal,
+        note: draft.name.trim().isEmpty ? draft.type : draft.name.trim(),
+      ),
     );
-    if (app == null || !mounted) return;
+    if (paid != true || !mounted) return;
     final navigator = Navigator.of(context);
-    final messenger = ScaffoldMessenger.of(context);
     late final String eventId;
     try {
       eventId = widget.store.saveEvent().id;
@@ -585,20 +521,6 @@ class _PlannerScreenState extends State<PlannerScreen> {
     } catch (e) {
       if (mounted) notify(context, e.toString());
       return;
-    }
-    final opened = await openUpiApp(
-      app: app,
-      amount: draft.itemsTotal,
-      note: draft.name.trim().isEmpty ? draft.type : draft.name.trim(),
-    );
-    if (!opened) {
-      messenger.showSnackBar(
-        const SnackBar(
-          content: Text(
-            'That UPI app could not be opened. Your celebration is saved.',
-          ),
-        ),
-      );
     }
     navigator.pushReplacement(
       MaterialPageRoute(
@@ -656,11 +578,7 @@ class _BalloonsScreenState extends State<BalloonsScreen> {
   Future<void> _pick() async {
     setState(() => picking = true);
     try {
-      final files = await picker.pickMultiImage(
-        maxWidth: 900,
-        maxHeight: 900,
-        imageQuality: 72,
-      );
+      final files = await picker.pickMultiImage(maxWidth: 900, maxHeight: 900, imageQuality: 72);
       await _import(files);
     } catch (_) {
       if (mounted) {
@@ -699,14 +617,10 @@ class _BalloonsScreenState extends State<BalloonsScreen> {
             TextFormField(
               initialValue: '${b.quantity}',
               keyboardType: TextInputType.number,
-              decoration: const InputDecoration(
-                labelText: 'How many balloons?',
-              ),
+              decoration: const InputDecoration(labelText: 'How many balloons?'),
               validator: (v) {
                 final n = int.tryParse(v ?? '');
-                return n == null || n < 1 || n > 10000
-                    ? 'Enter 1 to 10,000 balloons.'
-                    : null;
+                return n == null || n < 1 || n > 10000 ? 'Enter 1 to 10,000 balloons.' : null;
               },
               onChanged: (v) {
                 b.quantity = int.tryParse(v) ?? 0;
@@ -716,10 +630,7 @@ class _BalloonsScreenState extends State<BalloonsScreen> {
             gap24,
             const Text(
               'Pick your palette',
-              style: TextStyle(
-                color: AppColors.ink,
-                fontWeight: FontWeight.w600,
-              ),
+              style: TextStyle(color: AppColors.ink, fontWeight: FontWeight.w600),
             ),
             gap8,
             Wrap(
@@ -735,10 +646,7 @@ class _BalloonsScreenState extends State<BalloonsScreen> {
                       }.entries
                       .map(
                         (e) => FilterChip(
-                          avatar: CircleAvatar(
-                            backgroundColor: e.value,
-                            radius: 6,
-                          ),
+                          avatar: CircleAvatar(backgroundColor: e.value, radius: 6),
                           label: Text(e.key),
                           selected: b.colors.contains(e.key),
                           onSelected: (s) {
@@ -768,9 +676,7 @@ class _BalloonsScreenState extends State<BalloonsScreen> {
             TextFormField(
               initialValue: b.budget.toInt().toString(),
               keyboardType: TextInputType.number,
-              decoration: const InputDecoration(
-                labelText: 'Balloon budget (₹)',
-              ),
+              decoration: const InputDecoration(labelText: 'Balloon budget (₹)'),
               validator: (v) {
                 final n = double.tryParse(v ?? '');
                 return n == null || !n.isFinite || n < 0 || n > 10000000
@@ -802,11 +708,7 @@ class _BalloonsScreenState extends State<BalloonsScreen> {
       gap16,
       const Text(
         'A little inspiration (up to 4 photos)',
-        style: TextStyle(
-          fontSize: 12,
-          fontWeight: FontWeight.w600,
-          color: AppColors.ink,
-        ),
+        style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.ink),
       ),
       gap12,
       Wrap(
@@ -822,10 +724,7 @@ class _BalloonsScreenState extends State<BalloonsScreen> {
                 children: [
                   ClipRRect(
                     borderRadius: BorderRadius.circular(14),
-                    child: Image.memory(
-                      base64Decode(b.images[i]),
-                      fit: BoxFit.cover,
-                    ),
+                    child: Image.memory(base64Decode(b.images[i]), fit: BoxFit.cover),
                   ),
                   Positioned(
                     right: 0,
@@ -878,15 +777,8 @@ class CreatedScreen extends StatelessWidget {
           child: Container(
             width: 120,
             height: 120,
-            decoration: const BoxDecoration(
-              color: AppColors.lavender,
-              shape: BoxShape.circle,
-            ),
-            child: const Icon(
-              Icons.auto_awesome_outlined,
-              color: AppColors.purple,
-              size: 49,
-            ),
+            decoration: const BoxDecoration(color: AppColors.lavender, shape: BoxShape.circle),
+            child: const Icon(Icons.auto_awesome_outlined, color: AppColors.purple, size: 49),
           ),
         ),
         const SizedBox(height: 35),
@@ -926,9 +818,7 @@ class CreatedScreen extends StatelessWidget {
             ),
           ),
         ),
-        const DemoNotice(
-          text: 'Saved on this device · No vendor has been contacted.',
-        ),
+        const DemoNotice(text: 'Saved on this device · No vendor has been contacted.'),
       ],
     );
   }

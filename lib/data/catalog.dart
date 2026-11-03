@@ -10,13 +10,14 @@ const eventTypes = [
 ];
 
 class Offering {
-  final String id, group, name, detail;
+  final String id, group, name, detail, image;
   final double price;
   const Offering({
     required this.id,
     required this.group,
     required this.name,
     required this.detail,
+    required this.image,
     required this.price,
   });
 }
@@ -27,11 +28,7 @@ const serviceCatalog = <({String name, String image, String blurb})>[
     image: 'decoration.jpg',
     blurb: 'Flowers, balloons, and the finishing touches',
   ),
-  (
-    name: 'Furniture',
-    image: 'furniture.jpg',
-    blurb: 'Seating, tables, and a comfortable setup',
-  ),
+  (name: 'Furniture', image: 'furniture.jpg', blurb: 'Seating, tables, and a comfortable setup'),
 ];
 
 const offerings = <Offering>[
@@ -40,6 +37,7 @@ const offerings = <Offering>[
     group: 'Decoration',
     name: 'Floral arrangement',
     detail: 'Fresh flowers for the tables and stage',
+    image: 'flowers.jpg',
     price: 4500,
   ),
   Offering(
@@ -47,6 +45,7 @@ const offerings = <Offering>[
     group: 'Decoration',
     name: 'Balloon styling',
     detail: 'An arch, clusters, and a color palette',
+    image: 'balloons.jpg',
     price: 6500,
   ),
   Offering(
@@ -54,6 +53,7 @@ const offerings = <Offering>[
     group: 'Decoration',
     name: 'Stage backdrop',
     detail: 'Draped backdrop with soft lighting',
+    image: 'stage.jpg',
     price: 12000,
   ),
   Offering(
@@ -61,6 +61,7 @@ const offerings = <Offering>[
     group: 'Decoration',
     name: 'Entrance decoration',
     detail: 'Garlands and a welcome setup',
+    image: 'entrance.jpg',
     price: 3500,
   ),
   Offering(
@@ -68,6 +69,7 @@ const offerings = <Offering>[
     group: 'Decoration',
     name: 'Theme styling',
     detail: 'One coordinated look across the venue',
+    image: 'theme.jpg',
     price: 8000,
   ),
   Offering(
@@ -75,6 +77,7 @@ const offerings = <Offering>[
     group: 'Decoration',
     name: 'Fairy lights',
     detail: 'Warm decorative lighting',
+    image: 'lights.jpg',
     price: 2800,
   ),
   Offering(
@@ -82,6 +85,7 @@ const offerings = <Offering>[
     group: 'Furniture',
     name: 'Guest chairs',
     detail: 'A set of 10 cushioned chairs',
+    image: 'chairs.jpg',
     price: 2500,
   ),
   Offering(
@@ -89,6 +93,7 @@ const offerings = <Offering>[
     group: 'Furniture',
     name: 'Banquet table',
     detail: 'Round table dressed with linen',
+    image: 'tables.jpg',
     price: 1800,
   ),
   Offering(
@@ -96,6 +101,7 @@ const offerings = <Offering>[
     group: 'Furniture',
     name: 'Lounge sofa',
     detail: 'A two-seater for a relaxed corner',
+    image: 'sofa.jpg',
     price: 4000,
   ),
   Offering(
@@ -103,6 +109,7 @@ const offerings = <Offering>[
     group: 'Furniture',
     name: 'Dining table',
     detail: 'Seats eight, with place settings',
+    image: 'dining.jpg',
     price: 3200,
   ),
   Offering(
@@ -110,6 +117,7 @@ const offerings = <Offering>[
     group: 'Furniture',
     name: 'VIP seating',
     detail: 'A dressed seating set for the hosts',
+    image: 'vip.jpg',
     price: 7500,
   ),
   Offering(
@@ -117,6 +125,7 @@ const offerings = <Offering>[
     group: 'Furniture',
     name: 'Lounge furniture',
     detail: 'Low tables and extra seating',
+    image: 'lounge.jpg',
     price: 5400,
   ),
 ];
@@ -159,12 +168,7 @@ const vendors = <Vendor>[
     quote: 22000,
     badge: 'Top rated',
     setup: '1 hour',
-    services: [
-      'Photographer',
-      'Candid Photography',
-      'Videographer',
-      'Photo Booth',
-    ],
+    services: ['Photographer', 'Candid Photography', 'Videographer', 'Photo Booth'],
     about:
         'Candid photographs and carefully crafted films to keep your favorite moments close. Sample packages include event coverage, edited photographs and a digital gallery.',
   ),
@@ -265,9 +269,9 @@ List<Vendor> findVendors({
             v.rating >= rating &&
             v.from <= maxPrice &&
             (query.isEmpty ||
-                '${v.name} ${v.category} ${v.area} ${v.services.join(' ')}'
-                    .toLowerCase()
-                    .contains(query)),
+                '${v.name} ${v.category} ${v.area} ${v.services.join(' ')}'.toLowerCase().contains(
+                  query,
+                )),
       )
       .toList();
   if (sort == 'price') result.sort((a, b) => a.from.compareTo(b.from));

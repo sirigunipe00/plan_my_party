@@ -23,8 +23,7 @@ class ServiceItemsScreen extends StatefulWidget {
 
 class _ServiceItemsScreenState extends State<ServiceItemsScreen> {
   EventPlan get draft => widget.draft;
-  String get image =>
-      serviceCatalog.firstWhere((item) => item.name == widget.group).image;
+  String get image => serviceCatalog.firstWhere((item) => item.name == widget.group).image;
 
   int quantityOf(String id) {
     for (final line in draft.lines) {
@@ -56,11 +55,7 @@ class _ServiceItemsScreenState extends State<ServiceItemsScreen> {
     final items = offeringsFor(widget.group);
     return AppPage(
       title: widget.group,
-      bottom: PrimaryButton(
-        'Done',
-        icon: Icons.check,
-        onPressed: () => Navigator.pop(context),
-      ),
+      bottom: PrimaryButton('Done', icon: Icons.check, onPressed: () => Navigator.pop(context)),
       children: [
         ClipRRect(
           borderRadius: BorderRadius.circular(22),
@@ -81,21 +76,27 @@ class _ServiceItemsScreenState extends State<ServiceItemsScreen> {
           return Padding(
             padding: const EdgeInsets.only(bottom: 12),
             child: PartyCard(
+              padding: const EdgeInsets.all(12),
               child: Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: Image.asset(
+                      'assets/images/${offering.image}',
+                      width: 72,
+                      height: 72,
+                      fit: BoxFit.cover,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          offering.name,
-                          style: Theme.of(context).textTheme.titleMedium,
-                        ),
+                        Text(offering.name, style: Theme.of(context).textTheme.titleMedium),
                         gap8,
-                        Text(
-                          offering.detail,
-                          style: const TextStyle(fontSize: 11),
-                        ),
+                        Text(offering.detail, style: const TextStyle(fontSize: 11)),
                         gap8,
                         Text(
                           money(offering.price),
@@ -108,7 +109,7 @@ class _ServiceItemsScreenState extends State<ServiceItemsScreen> {
                       ],
                     ),
                   ),
-                  const SizedBox(width: 12),
+                  const SizedBox(width: 8),
                   quantity == 0
                       ? FilledButton(
                           key: ValueKey('add-${offering.id}'),
@@ -138,21 +139,25 @@ class _ServiceItemsScreenState extends State<ServiceItemsScreen> {
   }
 
   Widget _stepper(Offering offering, int quantity) => Row(
+    mainAxisSize: MainAxisSize.min,
     children: [
       IconButton(
         tooltip: 'Remove one ${offering.name}',
+        visualDensity: VisualDensity.compact,
+        padding: EdgeInsets.zero,
+        constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
         onPressed: () => setQuantity(offering, quantity - 1),
         icon: const Icon(Icons.remove_circle_outline, color: AppColors.purple),
       ),
       Text(
         '$quantity',
-        style: const TextStyle(
-          fontWeight: FontWeight.w700,
-          color: AppColors.ink,
-        ),
+        style: const TextStyle(fontWeight: FontWeight.w700, color: AppColors.ink),
       ),
       IconButton(
         tooltip: 'Add another ${offering.name}',
+        visualDensity: VisualDensity.compact,
+        padding: EdgeInsets.zero,
+        constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
         onPressed: () => setQuantity(offering, quantity + 1),
         icon: const Icon(Icons.add_circle_outline, color: AppColors.purple),
       ),

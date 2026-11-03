@@ -15,14 +15,8 @@ import 'package:plan_my_party/theme/app_theme.dart';
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   setUpAll(() async {
-    final fonts = FontLoader('DMSans')
-      ..addFont(rootBundle.load('assets/fonts/dm-sans.ttf'));
+    final fonts = FontLoader('DMSans')..addFont(rootBundle.load('assets/fonts/dm-sans.ttf'));
     await fonts.load();
-    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-        .setMockMethodCallHandler(
-          const MethodChannel('plugins.flutter.io/url_launcher'),
-          (call) async => true,
-        );
   });
   late AppStore store;
   setUp(() async {
@@ -31,9 +25,7 @@ void main() {
   });
   tearDown(() => store.dispose());
 
-  testWidgets('guest can plan a celebration and open UPI checkout', (
-    tester,
-  ) async {
+  testWidgets('guest can plan a celebration and pay on the phone', (tester) async {
     tester.view.physicalSize = const Size(390, 844);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
@@ -55,10 +47,7 @@ void main() {
     expect(find.text('Engagement'), findsNothing);
     expect(find.text('Reception'), findsNothing);
     expect(find.text('Anniversary'), findsWidgets);
-    await tester.enterText(
-      find.byKey(const ValueKey('event-name')),
-      'Sunny’s birthday',
-    );
+    await tester.enterText(find.byKey(const ValueKey('event-name')), 'Sunny’s birthday');
     await tester.enterText(find.byKey(const ValueKey('event-guests')), '90');
     await tester.tap(find.text('Choose your services'));
     await tester.pumpAndSettle();
@@ -75,25 +64,28 @@ void main() {
     expect(find.text('Floral arrangement × 1'), findsOneWidget);
     await tester.tap(find.text('Checkout'));
     await tester.pumpAndSettle();
-    expect(find.text('Pay with UPI'), findsOneWidget);
-    await tester.tap(find.text('Google Pay'));
+    expect(find.text('Pay on this phone.'), findsOneWidget);
+    expect(find.text('Pay with UPI'), findsNothing);
+    await tester.enterText(find.byKey(const ValueKey('payment-card-number')), '4242424242424242');
+    await tester.enterText(find.byKey(const ValueKey('payment-expiry')), '12/28');
+    await tester.enterText(find.byKey(const ValueKey('payment-cvv')), '123');
+    await tester.enterText(find.byKey(const ValueKey('payment-name')), 'Ananya');
+    await tester.tap(find.text('Pay now'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byKey(const ValueKey('payment-otp')), '123456');
+    await tester.tap(find.text('Confirm payment'));
     await tester.pumpAndSettle();
     expect(store.events.first.name, 'Sunny’s birthday');
     expect(store.events.first.guests, 90);
     expect(store.events.first.budget, 4500);
     expect(store.draft, isNull);
-    expect(
-      find.text('It’s a plan.\nAnd it’s going to be lovely.'),
-      findsOneWidget,
-    );
+    expect(find.text('It’s a plan.\nAnd it’s going to be lovely.'), findsOneWidget);
     expect(tester.takeException(), isNull);
     await store.persist();
     await tester.pumpWidget(const SizedBox());
   });
 
-  testWidgets('a chosen occasion is the only one on the celebration screen', (
-    tester,
-  ) async {
+  testWidgets('a chosen occasion is the only one on the celebration screen', (tester) async {
     tester.view.physicalSize = const Size(390, 844);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
@@ -111,9 +103,7 @@ void main() {
     await tester.pumpWidget(const SizedBox());
   });
 
-  testWidgets('vendor favorites and the selected-vendor quote work', (
-    tester,
-  ) async {
+  testWidgets('vendor favorites and the selected-vendor quote work', (tester) async {
     tester.view.physicalSize = const Size(390, 844);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
@@ -142,56 +132,49 @@ void main() {
   });
 
   for (final width in [320.0, 390.0, 430.0]) {
-    testWidgets(
-      'key screens render at ${width.toInt()}px without layout exceptions',
-      (tester) async {
-        tester.view.physicalSize = Size(width, 844);
-        tester.view.devicePixelRatio = 1;
-        addTearDown(tester.view.resetPhysicalSize);
-        addTearDown(tester.view.resetDevicePixelRatio);
-        store.onboarded = true;
-        await tester.pumpWidget(PartyApp(store: store));
+    testWidgets('key screens render at ${width.toInt()}px without layout exceptions', (
+      tester,
+    ) async {
+      tester.view.physicalSize = Size(width, 844);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      store.onboarded = true;
+      await tester.pumpWidget(PartyApp(store: store));
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+      for (final tab in ['Explore', 'My events', 'Updates', 'Profile']) {
+        await tester.tap(find.text(tab).last);
         await tester.pumpAndSettle();
-        expect(tester.takeException(), isNull);
-        for (final tab in ['Explore', 'My events', 'Updates', 'Profile']) {
-          await tester.tap(find.text(tab).last);
-          await tester.pumpAndSettle();
-          expect(tester.takeException(), isNull, reason: tab);
-        }
-        final event = store.events.first;
-        for (final screen in <Widget>[
-          VendorDetailScreen(store: store, vendor: vendors.first),
-          EventDetailScreen(store: store, eventId: event.id),
-          QuotesScreen(store: store, eventId: event.id),
-          CompareScreen(store: store, eventId: event.id),
-          FavoritesScreen(store: store),
-          PersonalScreen(store: store),
-          AddressesScreen(store: store),
-          PrivacyScreen(store: store),
-        ]) {
-          await tester.pumpWidget(
-            MaterialApp(key: UniqueKey(), theme: partyTheme(), home: screen),
-          );
-          await tester.pumpAndSettle();
-          expect(
-            tester.takeException(),
-            isNull,
-            reason: screen.runtimeType.toString(),
-          );
-        }
-        store.startDraft();
-        await tester.pumpWidget(
-          MaterialApp(
-            key: UniqueKey(),
-            theme: partyTheme(),
-            home: PlannerScreen(store: store),
-          ),
-        );
+        expect(tester.takeException(), isNull, reason: tab);
+      }
+      final event = store.events.first;
+      for (final screen in <Widget>[
+        VendorDetailScreen(store: store, vendor: vendors.first),
+        EventDetailScreen(store: store, eventId: event.id),
+        QuotesScreen(store: store, eventId: event.id),
+        CompareScreen(store: store, eventId: event.id),
+        FavoritesScreen(store: store),
+        PersonalScreen(store: store),
+        AddressesScreen(store: store),
+        PrivacyScreen(store: store),
+      ]) {
+        await tester.pumpWidget(MaterialApp(key: UniqueKey(), theme: partyTheme(), home: screen));
         await tester.pumpAndSettle();
-        expect(tester.takeException(), isNull);
-        await store.persist();
-        await tester.pumpWidget(const SizedBox());
-      },
-    );
+        expect(tester.takeException(), isNull, reason: screen.runtimeType.toString());
+      }
+      store.startDraft();
+      await tester.pumpWidget(
+        MaterialApp(
+          key: UniqueKey(),
+          theme: partyTheme(),
+          home: PlannerScreen(store: store),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+      await store.persist();
+      await tester.pumpWidget(const SizedBox());
+    });
   }
 }
