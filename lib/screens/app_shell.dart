@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import '../state/app_store.dart';
 import 'home_screen.dart';
-import 'vendor_screens.dart';
 import 'event_screens.dart';
 import 'profile_screens.dart';
 
@@ -30,9 +29,7 @@ class _AppShellState extends State<AppShell> {
             index: selected,
             children: [
               HomeScreen(store: widget.store, onTab: tab),
-              ExploreScreen(store: widget.store),
               MyEventsScreen(store: widget.store),
-              UpdatesScreen(store: widget.store),
               ProfileScreen(store: widget.store, onTab: tab),
             ],
           ),
@@ -47,16 +44,8 @@ class _AppShellState extends State<AppShell> {
               label: 'Home',
             ),
             NavigationDestination(
-              icon: Icon(Icons.search_rounded),
-              label: 'Explore',
-            ),
-            NavigationDestination(
               icon: Icon(Icons.calendar_month_outlined),
               label: 'My events',
-            ),
-            NavigationDestination(
-              icon: Icon(Icons.notifications_none_rounded),
-              label: 'Updates',
             ),
             NavigationDestination(
               icon: Icon(Icons.person_outline_rounded),

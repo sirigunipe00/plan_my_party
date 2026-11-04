@@ -9,10 +9,15 @@ class AppStore extends ChangeNotifier {
   final SharedPreferences preferences;
   AppStore(this.preferences);
   Profile profile = Profile();
-  bool onboarded = false, alertsRead = false, quoteUpdates = true, eventReminders = true;
+  bool onboarded = false,
+      alertsRead = false,
+      quoteUpdates = true,
+      eventReminders = true;
   Set<String> favorites = {};
   List<EventPlan> events = [];
-  List<SavedAddress> addresses = [SavedAddress('Home', 'Banjara Hills, Hyderabad')];
+  List<SavedAddress> addresses = [
+    SavedAddress('Home', 'Banjara Hills, Hyderabad'),
+  ];
   EventPlan? draft;
   String? lastStorageError;
   Timer? _saveTimer;
@@ -32,7 +37,9 @@ class AppStore extends ChangeNotifier {
         if (j['version'] != 1) {
           throw const FormatException('Unsupported data version');
         }
-        profile = Profile.fromJson(Map<String, dynamic>.from(j['profile'] as Map));
+        profile = Profile.fromJson(
+          Map<String, dynamic>.from(j['profile'] as Map),
+        );
         onboarded = j['onboarded'] as bool? ?? false;
         alertsRead = j['alertsRead'] as bool? ?? false;
         quoteUpdates = j['quoteUpdates'] as bool? ?? true;
@@ -42,10 +49,14 @@ class AppStore extends ChangeNotifier {
             .map((e) => EventPlan.fromJson(Map<String, dynamic>.from(e as Map)))
             .toList();
         addresses = (j['addresses'] as List? ?? [])
-            .map((e) => SavedAddress.fromJson(Map<String, dynamic>.from(e as Map)))
+            .map(
+              (e) => SavedAddress.fromJson(Map<String, dynamic>.from(e as Map)),
+            )
             .toList();
         if (j['draft'] != null) {
-          draft = EventPlan.fromJson(Map<String, dynamic>.from(j['draft'] as Map));
+          draft = EventPlan.fromJson(
+            Map<String, dynamic>.from(j['draft'] as Map),
+          )..normalizeLines();
         }
         return;
       } catch (_) {
@@ -117,14 +128,17 @@ class AppStore extends ChangeNotifier {
     notifyListeners();
     if (debounce) {
       _saveTimer?.cancel();
-      _saveTimer = Timer(const Duration(milliseconds: 250), () => unawaited(persist()));
+      _saveTimer = Timer(
+        const Duration(milliseconds: 250),
+        () => unawaited(persist()),
+      );
     } else {
       unawaited(persist());
     }
   }
 
   EventPlan startDraft([String? type]) {
-    draft ??= EventPlan();
+    draft ??= EventPlan(date: DateTime.now());
     if (type != null) {
       draft!.type = type;
       draft!.occasionChosen = true;
@@ -138,14 +152,13 @@ class AppStore extends ChangeNotifier {
   EventPlan saveEvent() {
     final source = draft;
     if (source == null) throw StateError('No event draft');
-    if (source.lines.isNotEmpty) source.applyLines();
+    source.normalizeLines();
+    source.applyLines();
+    // Decoration and furniture are optional; without items the planned budget
+    // is validated instead.
     final error =
         source.validateBasics() ??
-        (source.lines.isNotEmpty
-            ? null
-            : source.services.isEmpty
-            ? 'Choose at least one service.'
-            : source.validateBudget());
+        (source.lines.isNotEmpty ? null : source.validateBudget());
     if (error != null) throw StateError(error);
     final event = source.copy()
       ..id = DateTime.now().microsecondsSinceEpoch.toString()
@@ -165,14 +178,21 @@ class AppStore extends ChangeNotifier {
     changed();
   }
 
-  void requestQuote(EventPlan event, Vendor vendor, double budget, String notes) {
+  void requestQuote(
+    EventPlan event,
+    Vendor vendor,
+    double budget,
+    String notes,
+  ) {
     if (event.status != 'Upcoming') {
       throw StateError('Choose an upcoming event.');
     }
     if (!budget.isFinite || budget <= 0) {
       throw ArgumentError('Enter a valid vendor budget.');
     }
-    event.requests.add(QuoteRequest(vendorId: vendor.id, notes: notes, budget: budget));
+    event.requests.add(
+      QuoteRequest(vendorId: vendor.id, notes: notes, budget: budget),
+    );
     if (!event.quotes.contains(vendor.id)) event.quotes.add(vendor.id);
     alertsRead = false;
     changed();
@@ -188,7 +208,8 @@ class AppStore extends ChangeNotifier {
     final b = DemoBooking(
       vendorId: vendor.id,
       amount: vendor.quote,
-      reference: 'DEMO-${DateTime.now().microsecondsSinceEpoch.toRadixString(36).toUpperCase()}',
+      reference:
+          'DEMO-${DateTime.now().microsecondsSinceEpoch.toRadixString(36).toUpperCase()}',
     );
     event.bookings.add(b);
     alertsRead = false;

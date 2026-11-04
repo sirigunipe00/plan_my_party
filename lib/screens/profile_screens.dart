@@ -91,7 +91,7 @@ class ProfileScreen extends StatelessWidget {
               Icons.calendar_month_outlined,
               'My celebrations',
               'Everything you’re planning',
-              () => onTab(2),
+              () => onTab(1),
             ),
             _menu(
               Icons.favorite_border,
@@ -412,11 +412,6 @@ class FavoritesScreen extends StatelessWidget {
               'Your dream team starts here.',
               'Tap the heart on a vendor to save them for later.',
               icon: Icons.favorite_border,
-              action: PrimaryButton(
-                'Explore vendors',
-                onPressed: () =>
-                    pushPage(context, VendorBrowsePage(store: store)),
-              ),
             )
           else
             VendorGrid(

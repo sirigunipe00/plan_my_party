@@ -88,3 +88,21 @@ APK output: `build/app/outputs/flutter-apk/app-release.apk`.
 The release configuration currently uses the **development/debug signing identity** for testing. Configure your own private release signing before public distribution. See `VALIDATION.md` for completed checks and testing limits.
 
 No credentials or API keys are required for the included demo.
+
+## Free location search
+
+The original OpenStreetMap venue picker is integrated with the event form,
+including its map preview and selected location pin. No API key or billing
+account is needed. Enter a venue and city, tap Search, then select a result.
+The address and coordinates are saved with the event.
+
+The public Nominatim service prohibits autocomplete. Search is explicit,
+repeated queries are cached in the picker, and local requests are limited to
+one per second. The provider limit applies across all users of the app:
+before wider distribution, use a proxy with shared caching and rate limiting
+or a hosted Nominatim-compatible service. Configure an alternate endpoint with
+`--dart-define=LOCATION_SEARCH_URL=https://your-host/search`.
+Search and map tiles require internet; coverage depends on OpenStreetMap.
+
+Usage policy: https://operations.osmfoundation.org/policies/nominatim/
+Map attribution: https://www.openstreetmap.org/copyright

@@ -243,6 +243,33 @@ class EventPlan {
     return null;
   }
 
+  static const maxItemQuantity = 99;
+
+  /// Merges repeated lines of the same item into one and keeps every
+  /// quantity between 1 and [maxItemQuantity].
+  void normalizeLines() {
+    final merged = <String, ServiceLine>{};
+    for (final line in lines) {
+      if (line.quantity < 1) continue;
+      final existing = merged[line.id];
+      if (existing == null) {
+        merged[line.id] = ServiceLine(
+          id: line.id,
+          group: line.group,
+          name: line.name,
+          price: line.price,
+          quantity: line.quantity,
+        );
+      } else {
+        existing.quantity += line.quantity;
+      }
+    }
+    lines = [
+      for (final line in merged.values)
+        line..quantity = line.quantity.clamp(1, maxItemQuantity),
+    ];
+  }
+
   String? validateBudget() {
     if (lines.isNotEmpty) {
       if (!itemsTotal.isFinite || itemsTotal <= 0) {

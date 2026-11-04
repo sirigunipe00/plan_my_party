@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:plan_my_party/main.dart';
+import 'package:plan_my_party/widgets/venue_picker.dart';
 import 'package:plan_my_party/state/app_store.dart';
 import 'package:plan_my_party/screens/planner_screen.dart';
 import 'package:plan_my_party/screens/vendor_screens.dart';
@@ -15,7 +16,8 @@ import 'package:plan_my_party/theme/app_theme.dart';
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   setUpAll(() async {
-    final fonts = FontLoader('DMSans')..addFont(rootBundle.load('assets/fonts/dm-sans.ttf'));
+    final fonts = FontLoader('DMSans')
+      ..addFont(rootBundle.load('assets/fonts/dm-sans.ttf'));
     await fonts.load();
   });
   late AppStore store;
@@ -25,7 +27,7 @@ void main() {
   });
   tearDown(() => store.dispose());
 
-  testWidgets('guest can plan a celebration and pay on the phone', (tester) async {
+  testWidgets('guest creates an event in three separate steps', (tester) async {
     tester.view.physicalSize = const Size(390, 844);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
@@ -35,75 +37,115 @@ void main() {
     await tester.ensureVisible(find.text('Explore as a guest →'));
     await tester.tap(find.text('Explore as a guest →'));
     await tester.pumpAndSettle();
-    expect(find.text('Hello, Ananya ✦'), findsOneWidget);
-    expect(find.text('Wedding'), findsNothing);
     await tester.tap(find.text('Plan an event'));
     await tester.pumpAndSettle();
-    store.draft!
-      ..latitude = 17.4156
-      ..longitude = 78.4347
-      ..location = 'Banjara Hills, Hyderabad';
-    expect(find.text('Wedding'), findsNothing);
-    expect(find.text('Engagement'), findsNothing);
-    expect(find.text('Reception'), findsNothing);
-    expect(find.text('Anniversary'), findsWidgets);
-    await tester.enterText(find.byKey(const ValueKey('event-name')), 'Sunny’s birthday');
-    await tester.enterText(find.byKey(const ValueKey('event-guests')), '90');
-    await tester.tap(find.text('Choose your services'));
+
+    // Step 1: date & time.
+    expect(find.text('Step 1 of 3'), findsOneWidget);
+    expect(find.byKey(const ValueKey('step-date-time')), findsOneWidget);
+    expect(find.text('Starts at'), findsOneWidget);
+    expect(find.text('Back'), findsNothing);
+    await tester.tap(find.text('Next'));
     await tester.pumpAndSettle();
-    expect(find.text('Build your\nkind of celebration.'), findsOneWidget);
-    await tester.tap(find.byKey(const ValueKey('service-Decoration')));
+
+    // Step 2: location is required before moving on.
+    expect(find.text('Step 2 of 3'), findsOneWidget);
+    expect(find.byType(VenuePicker), findsOneWidget);
+    await tester.tap(find.text('Next'));
     await tester.pumpAndSettle();
+    expect(find.text('Step 2 of 3'), findsOneWidget);
+    expect(find.text('Search and select an event location.'), findsOneWidget);
+    tester
+        .widget<VenuePicker>(find.byType(VenuePicker))
+        .onPicked(const VenuePick('Sunny Hall, Hyderabad', 17.4156, 78.4347));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Back'));
+    await tester.pumpAndSettle();
+    expect(find.text('Step 1 of 3'), findsOneWidget);
+    await tester.tap(find.text('Next'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Next'));
+    await tester.pumpAndSettle();
+
+    // Step 3: decoration & furniture, no scrolling, then Create Event.
+    expect(find.text('Step 3 of 3'), findsOneWidget);
+    final scrollable = find.descendant(
+      of: find.byKey(const ValueKey('step-items')),
+      matching: find.byType(Scrollable),
+    );
+    expect(
+      tester.state<ScrollableState>(scrollable).position.maxScrollExtent,
+      0,
+    );
+    // Items are optional, repeatable, and the budget follows the quantity.
     await tester.tap(find.byKey(const ValueKey('add-flowers')));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Done'));
+    await tester.tap(find.byTooltip('Add another Floral arrangement'));
+    await tester.tap(find.byTooltip('Add another Floral arrangement'));
+    await tester.tap(find.byTooltip('Remove one Floral arrangement'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Review celebration'));
+    await tester.tap(find.byKey(const ValueKey('add-chairs')));
     await tester.pumpAndSettle();
-    expect(find.text('Sunny’s birthday'), findsOneWidget);
-    expect(find.text('Floral arrangement × 1'), findsOneWidget);
-    await tester.tap(find.text('Checkout'));
+    expect(find.text('3 selected · ₹11,500'), findsOneWidget);
+    await tester.tap(find.text('Create Event'));
     await tester.pumpAndSettle();
-    expect(find.text('Pay on this phone.'), findsOneWidget);
-    expect(find.text('Pay with UPI'), findsNothing);
-    await tester.enterText(find.byKey(const ValueKey('payment-card-number')), '4242424242424242');
-    await tester.enterText(find.byKey(const ValueKey('payment-expiry')), '12/28');
-    await tester.enterText(find.byKey(const ValueKey('payment-cvv')), '123');
-    await tester.enterText(find.byKey(const ValueKey('payment-name')), 'Ananya');
-    await tester.tap(find.text('Pay now'));
-    await tester.pumpAndSettle();
-    await tester.enterText(find.byKey(const ValueKey('payment-otp')), '123456');
-    await tester.tap(find.text('Confirm payment'));
-    await tester.pumpAndSettle();
-    expect(store.events.first.name, 'Sunny’s birthday');
-    expect(store.events.first.guests, 90);
-    expect(store.events.first.budget, 4500);
+    expect(store.events.first.location, 'Sunny Hall, Hyderabad');
+    expect(store.events.first.latitude, 17.4156);
+    expect(store.events.first.longitude, 78.4347);
+    expect(store.events.first.lines.map((line) => line.id), [
+      'flowers',
+      'chairs',
+    ]);
+    expect(store.events.first.lines.map((line) => line.quantity), [2, 1]);
+    expect(store.events.first.budget, 11500);
     expect(store.draft, isNull);
-    expect(find.text('It’s a plan.\nAnd it’s going to be lovely.'), findsOneWidget);
+    expect(find.text('Your event has been created.'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+    await store.persist();
+    final restored = await AppStore.load();
+    expect(restored.events.first.lines.length, 2);
+    restored.dispose();
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('an event can be created without any decoration or furniture', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    await tester.pumpWidget(PartyApp(store: store));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('Explore as a guest →'));
+    await tester.tap(find.text('Explore as a guest →'));
+    await tester.pumpAndSettle();
+    final before = store.events.length;
+    await tester.tap(find.text('Plan an event'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Next'));
+    await tester.pumpAndSettle();
+    tester
+        .widget<VenuePicker>(find.byType(VenuePicker))
+        .onPicked(const VenuePick('Sunny Hall, Hyderabad', 17.4156, 78.4347));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Next'));
+    await tester.pumpAndSettle();
+    expect(find.text('Step 3 of 3'), findsOneWidget);
+    expect(find.text('No items selected yet'), findsOneWidget);
+    await tester.tap(find.text('Create Event'));
+    await tester.pumpAndSettle();
+    expect(store.events.length, before + 1);
+    expect(store.events.first.lines, isEmpty);
+    expect(find.text('Your event has been created.'), findsOneWidget);
     expect(tester.takeException(), isNull);
     await store.persist();
     await tester.pumpWidget(const SizedBox());
   });
 
-  testWidgets('a chosen occasion is the only one on the celebration screen', (tester) async {
-    tester.view.physicalSize = const Size(390, 844);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(tester.view.resetPhysicalSize);
-    addTearDown(tester.view.resetDevicePixelRatio);
-    store.onboarded = true;
-    await tester.pumpWidget(PartyApp(store: store));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Birthday'));
-    await tester.pumpAndSettle();
-    expect(find.text('Birthday'), findsWidgets);
-    expect(find.text('Corporate'), findsNothing);
-    expect(find.text('Baby Shower'), findsNothing);
-    expect(store.draft!.occasionChosen, isTrue);
-    expect(tester.takeException(), isNull);
-    await tester.pumpWidget(const SizedBox());
-  });
-
-  testWidgets('vendor favorites and the selected-vendor quote work', (tester) async {
+  testWidgets('vendor favorites and the selected-vendor quote work', (
+    tester,
+  ) async {
     tester.view.physicalSize = const Size(390, 844);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
@@ -132,49 +174,56 @@ void main() {
   });
 
   for (final width in [320.0, 390.0, 430.0]) {
-    testWidgets('key screens render at ${width.toInt()}px without layout exceptions', (
-      tester,
-    ) async {
-      tester.view.physicalSize = Size(width, 844);
-      tester.view.devicePixelRatio = 1;
-      addTearDown(tester.view.resetPhysicalSize);
-      addTearDown(tester.view.resetDevicePixelRatio);
-      store.onboarded = true;
-      await tester.pumpWidget(PartyApp(store: store));
-      await tester.pumpAndSettle();
-      expect(tester.takeException(), isNull);
-      for (final tab in ['Explore', 'My events', 'Updates', 'Profile']) {
-        await tester.tap(find.text(tab).last);
+    testWidgets(
+      'key screens render at ${width.toInt()}px without layout exceptions',
+      (tester) async {
+        tester.view.physicalSize = Size(width, 844);
+        tester.view.devicePixelRatio = 1;
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.view.resetDevicePixelRatio);
+        store.onboarded = true;
+        await tester.pumpWidget(PartyApp(store: store));
         await tester.pumpAndSettle();
-        expect(tester.takeException(), isNull, reason: tab);
-      }
-      final event = store.events.first;
-      for (final screen in <Widget>[
-        VendorDetailScreen(store: store, vendor: vendors.first),
-        EventDetailScreen(store: store, eventId: event.id),
-        QuotesScreen(store: store, eventId: event.id),
-        CompareScreen(store: store, eventId: event.id),
-        FavoritesScreen(store: store),
-        PersonalScreen(store: store),
-        AddressesScreen(store: store),
-        PrivacyScreen(store: store),
-      ]) {
-        await tester.pumpWidget(MaterialApp(key: UniqueKey(), theme: partyTheme(), home: screen));
+        expect(tester.takeException(), isNull);
+        for (final tab in ['My events', 'Profile']) {
+          await tester.tap(find.text(tab).last);
+          await tester.pumpAndSettle();
+          expect(tester.takeException(), isNull, reason: tab);
+        }
+        final event = store.events.first;
+        for (final screen in <Widget>[
+          VendorDetailScreen(store: store, vendor: vendors.first),
+          EventDetailScreen(store: store, eventId: event.id),
+          QuotesScreen(store: store, eventId: event.id),
+          CompareScreen(store: store, eventId: event.id),
+          FavoritesScreen(store: store),
+          PersonalScreen(store: store),
+          AddressesScreen(store: store),
+          PrivacyScreen(store: store),
+        ]) {
+          await tester.pumpWidget(
+            MaterialApp(key: UniqueKey(), theme: partyTheme(), home: screen),
+          );
+          await tester.pumpAndSettle();
+          expect(
+            tester.takeException(),
+            isNull,
+            reason: screen.runtimeType.toString(),
+          );
+        }
+        store.startDraft();
+        await tester.pumpWidget(
+          MaterialApp(
+            key: UniqueKey(),
+            theme: partyTheme(),
+            home: PlannerScreen(store: store),
+          ),
+        );
         await tester.pumpAndSettle();
-        expect(tester.takeException(), isNull, reason: screen.runtimeType.toString());
-      }
-      store.startDraft();
-      await tester.pumpWidget(
-        MaterialApp(
-          key: UniqueKey(),
-          theme: partyTheme(),
-          home: PlannerScreen(store: store),
-        ),
-      );
-      await tester.pumpAndSettle();
-      expect(tester.takeException(), isNull);
-      await store.persist();
-      await tester.pumpWidget(const SizedBox());
-    });
+        expect(tester.takeException(), isNull);
+        await store.persist();
+        await tester.pumpWidget(const SizedBox());
+      },
+    );
   }
 }

@@ -26,9 +26,9 @@ void notify(BuildContext context, String text) {
 Future<T?> pushPage<T>(BuildContext context, Widget page) =>
     Navigator.of(context).push<T>(MaterialPageRoute(builder: (_) => page));
 const gap8 = SizedBox(height: 8),
-    gap12 = SizedBox(height: 12),
-    gap16 = SizedBox(height: 16),
-    gap24 = SizedBox(height: 24);
+    gap12 = SizedBox(height: 10),
+    gap16 = SizedBox(height: 12),
+    gap24 = SizedBox(height: 18);
 
 class StoreView extends StatelessWidget {
   final AppStore store;
@@ -69,7 +69,7 @@ class AppPage extends StatelessWidget {
           constraints: const BoxConstraints(maxWidth: 680),
           child: SingleChildScrollView(
             padding: padded
-                ? const EdgeInsets.fromLTRB(22, 16, 22, 28)
+                ? const EdgeInsets.fromLTRB(16, 12, 16, 18)
                 : EdgeInsets.zero,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -90,8 +90,8 @@ class AppPage extends StatelessWidget {
               top: false,
               child: Padding(
                 padding: const EdgeInsets.symmetric(
-                  horizontal: 22,
-                  vertical: 13,
+                  horizontal: 16,
+                  vertical: 10,
                 ),
                 child: bottom,
               ),
@@ -136,7 +136,7 @@ class PageHeading extends StatelessWidget {
   const PageHeading(this.title, {super.key, this.subtitle = ''});
   @override
   Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.only(bottom: 23),
+    padding: const EdgeInsets.only(bottom: 16),
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -170,7 +170,7 @@ class SectionTitle extends StatelessWidget {
   const SectionTitle(this.title, {super.key, this.action, this.onAction});
   @override
   Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.only(top: 25, bottom: 13),
+    padding: const EdgeInsets.only(top: 18, bottom: 10),
     child: Row(
       children: [
         Expanded(
@@ -197,7 +197,7 @@ class PartyCard extends StatelessWidget {
   const PartyCard({
     super.key,
     required this.child,
-    this.padding = const EdgeInsets.all(16),
+    this.padding = const EdgeInsets.all(12),
     this.color = Colors.white,
     this.onTap,
   });
@@ -288,7 +288,7 @@ class EmptyState extends StatelessWidget {
   });
   @override
   Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.symmetric(vertical: 42, horizontal: 12),
+    padding: const EdgeInsets.symmetric(vertical: 28, horizontal: 12),
     child: Column(
       children: [
         Container(

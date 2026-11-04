@@ -63,17 +63,8 @@ class HomeScreen extends StatelessWidget {
                 ],
               ),
             ),
-            IconButton(
-              onPressed: () => onTab(3),
-              tooltip: 'Your updates',
-              icon: Badge(
-                isLabelVisible: !store.alertsRead,
-                smallSize: 5,
-                child: const Icon(Icons.notifications_none_rounded),
-              ),
-            ),
             InkWell(
-              onTap: () => onTab(4),
+              onTap: () => onTab(2),
               borderRadius: BorderRadius.circular(30),
               child: CircleAvatar(
                 backgroundColor: const Color(0xffE8DCCF),
@@ -222,7 +213,7 @@ class HomeScreen extends StatelessWidget {
         SectionTitle(
           'Your next celebration',
           action: 'View all ›',
-          onAction: () => onTab(2),
+          onAction: () => onTab(1),
         ),
         if (upcoming.isNotEmpty)
           EventTile(
@@ -241,11 +232,7 @@ class HomeScreen extends StatelessWidget {
               onPressed: () => openPlanner(context, store),
             ),
           ),
-        SectionTitle(
-          'Meet your party people',
-          action: 'See all ›',
-          onAction: () => onTab(1),
-        ),
+        SectionTitle('Meet your party people'),
         VendorGrid(
           vendors: vendors.take(2).toList(),
           store: store,

@@ -176,7 +176,7 @@ class RootScroll extends StatelessWidget {
     child: ConstrainedBox(
       constraints: const BoxConstraints(maxWidth: 680),
       child: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(22, 20, 22, 28),
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 18),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: children,

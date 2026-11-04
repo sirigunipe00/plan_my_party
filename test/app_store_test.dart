@@ -59,15 +59,55 @@ void main() {
     expect(d.validateBasics(), contains('guests'));
   });
 
+  void pick(EventPlan draft, List<String> ids) {
+    for (final item in offerings.where((o) => ids.contains(o.id))) {
+      draft.lines.add(
+        ServiceLine(
+          id: item.id,
+          group: item.group,
+          name: item.name,
+          price: item.price,
+        ),
+      );
+    }
+  }
+
+  test('decoration and furniture are optional when creating an event', () {
+    store.startDraft().name = 'No extras';
+    final event = store.saveEvent();
+    expect(event.lines, isEmpty);
+    expect(store.events.first.name, 'No extras');
+    expect(store.draft, isNull);
+  });
+
+  test('an item can be chosen several times and the budget follows', () {
+    final draft = store.startDraft()..name = 'Many';
+    pick(draft, ['flowers', 'chairs']);
+    draft.lines[0].quantity = 3;
+    draft.lines.add(
+      ServiceLine(
+        id: 'flowers',
+        group: 'Decoration',
+        name: 'Floral arrangement',
+        price: 4500,
+        quantity: 2,
+      ),
+    );
+    final event = store.saveEvent();
+    expect(event.lines.map((l) => l.id), ['flowers', 'chairs']);
+    expect(event.lines.map((l) => l.quantity), [5, 1]);
+    expect(event.budget, 5 * 4500 + 2500);
+  });
+
   test('saved event preserves details and clears its draft', () async {
     final draft = store.startDraft()
       ..name = 'Sunny’s <great> birthday'
-      ..guests = 90
-      ..budget = 125000;
+      ..guests = 90;
+    pick(draft, ['flowers', 'chairs']);
     final event = store.saveEvent();
     expect(event.name, draft.name);
     expect(event.guests, 90);
-    expect(event.budget, 125000);
+    expect(event.budget, 7000);
     expect(event.id, isNotEmpty);
     expect(event.quotes, isEmpty);
     expect(store.draft, isNull);
@@ -80,7 +120,8 @@ void main() {
   test(
     'quote and booking belong to the selected vendor and cannot duplicate',
     () async {
-      store.startDraft().name = 'A new birthday';
+      final draft = store.startDraft()..name = 'A new birthday';
+      pick(draft, ['flowers', 'chairs']);
       final event = store.saveEvent();
       final lens = vendorById('lens');
       store.requestQuote(event, lens, 24000, 'Candid photos please.');

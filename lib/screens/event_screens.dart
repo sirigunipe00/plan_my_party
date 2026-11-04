@@ -1,13 +1,11 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import '../data/catalog.dart';
-import '../models/models.dart';
 import '../state/app_store.dart';
 import '../theme/app_theme.dart';
 import '../widgets/common.dart';
 import '../widgets/catalog_widgets.dart';
 import 'planner_screen.dart';
-import 'vendor_screens.dart';
 import 'quote_screens.dart';
 
 class MyEventsScreen extends StatefulWidget {
@@ -217,16 +215,6 @@ class EventDetailScreen extends StatelessWidget {
                   ],
           ),
         ],
-        bottom: event.status == 'Upcoming'
-            ? PrimaryButton(
-                'Find more party people',
-                icon: Icons.search,
-                onPressed: () => pushPage(
-                  context,
-                  VendorBrowsePage(store: store, eventId: eventId),
-                ),
-              )
-            : null,
         children: [
           ClipRRect(
             borderRadius: BorderRadius.circular(21),
@@ -312,7 +300,7 @@ class EventDetailScreen extends StatelessWidget {
                         (line) => Padding(
                           padding: const EdgeInsets.only(bottom: 8),
                           child: InfoPair(
-                            '${line.group} · ${line.name} × ${line.quantity}',
+                            '${line.group} · ${line.name}${line.quantity > 1 ? ' × ${line.quantity}' : ''}',
                             money(line.total),
                           ),
                         ),
@@ -335,14 +323,7 @@ class EventDetailScreen extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const Text(
-                    'A great celebration starts with great people. Find your favorites and try a sample quote.',
-                  ),
-                  TextButton(
-                    onPressed: () => pushPage(
-                      context,
-                      VendorBrowsePage(store: store, eventId: eventId),
-                    ),
-                    child: const Text('Explore vendors →'),
+                    'Your event is saved. Your selected items appear above.',
                   ),
                 ],
               ),
@@ -467,139 +448,4 @@ class EventDetailScreen extends StatelessWidget {
           ],
         ),
       );
-}
-
-class UpdatesScreen extends StatelessWidget {
-  final AppStore store;
-  const UpdatesScreen({super.key, required this.store});
-  @override
-  Widget build(BuildContext context) {
-    final updates =
-        <
-          ({
-            EventPlan event,
-            IconData icon,
-            String title,
-            String text,
-            bool quotes,
-          })
-        >[];
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
-    for (final event in store.events) {
-      for (final b in event.bookings) {
-        updates.add((
-          event: event,
-          icon: Icons.check_circle_outline,
-          title: '${vendorById(b.vendorId).name} added to your plan',
-          text: 'Demo booking saved for ${event.name}.',
-          quotes: false,
-        ));
-      }
-      if (store.quoteUpdates && event.quotes.isNotEmpty) {
-        updates.add((
-          event: event,
-          icon: Icons.chat_bubble_outline,
-          title: '${event.quotes.length} sample quotes to explore',
-          text: 'Compare a few lovely options for ${event.name}.',
-          quotes: true,
-        ));
-      }
-      final until = DateTime(
-        event.date.year,
-        event.date.month,
-        event.date.day,
-      ).difference(today).inDays;
-      if (store.eventReminders &&
-          event.status == 'Upcoming' &&
-          until >= 0 &&
-          until <= 1) {
-        updates.add((
-          event: event,
-          icon: Icons.celebration_outlined,
-          title: until == 0
-              ? 'Your happy day is here!'
-              : 'Your celebration is tomorrow!',
-          text: event.name,
-          quotes: false,
-        ));
-      }
-    }
-    return RootScroll(
-      children: [
-        Row(
-          children: [
-            Expanded(
-              child: Text(
-                'Your happy\nupdates.',
-                style: Theme.of(context).textTheme.headlineLarge,
-              ),
-            ),
-            TextButton(
-              onPressed: () {
-                store.alertsRead = true;
-                store.changed();
-                notify(context, 'All caught up.');
-              },
-              child: const Text('Mark as read', style: TextStyle(fontSize: 11)),
-            ),
-          ],
-        ),
-        gap8,
-        const Text('The little things to keep your plans moving.'),
-        const SectionTitle('Your celebrations'),
-        if (updates.isEmpty)
-          const EmptyState(
-            'All quiet, in a good way.',
-            'Your event updates will appear here.',
-            icon: Icons.notifications_none_rounded,
-          ),
-        ...updates.map(
-          (u) => ListTile(
-            contentPadding: const EdgeInsets.symmetric(vertical: 10),
-            onTap: () {
-              store.alertsRead = true;
-              store.changed();
-              pushPage(
-                context,
-                u.quotes
-                    ? QuotesScreen(store: store, eventId: u.event.id)
-                    : EventDetailScreen(store: store, eventId: u.event.id),
-              );
-            },
-            leading: Container(
-              width: 43,
-              height: 43,
-              decoration: BoxDecoration(
-                color: AppColors.lavender,
-                borderRadius: BorderRadius.circular(14),
-              ),
-              child: Icon(u.icon, color: AppColors.purple, size: 22),
-            ),
-            title: Text(
-              u.title,
-              style: const TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w700,
-                color: AppColors.ink,
-              ),
-            ),
-            subtitle: Text(
-              '${u.text}\nSaved on this device',
-              style: const TextStyle(fontSize: 11),
-            ),
-            trailing: store.alertsRead
-                ? null
-                : const CircleAvatar(
-                    radius: 3,
-                    backgroundColor: AppColors.purple,
-                  ),
-          ),
-        ),
-        const DemoNotice(
-          text: 'In-app demo updates · Push delivery is not connected.',
-        ),
-      ],
-    );
-  }
 }

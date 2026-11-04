@@ -28,7 +28,11 @@ const serviceCatalog = <({String name, String image, String blurb})>[
     image: 'decoration.jpg',
     blurb: 'Flowers, balloons, and the finishing touches',
   ),
-  (name: 'Furniture', image: 'furniture.jpg', blurb: 'Seating, tables, and a comfortable setup'),
+  (
+    name: 'Furniture',
+    image: 'furniture.jpg',
+    blurb: 'Seating, tables, and a comfortable setup',
+  ),
 ];
 
 const offerings = <Offering>[
@@ -168,7 +172,12 @@ const vendors = <Vendor>[
     quote: 22000,
     badge: 'Top rated',
     setup: '1 hour',
-    services: ['Photographer', 'Candid Photography', 'Videographer', 'Photo Booth'],
+    services: [
+      'Photographer',
+      'Candid Photography',
+      'Videographer',
+      'Photo Booth',
+    ],
     about:
         'Candid photographs and carefully crafted films to keep your favorite moments close. Sample packages include event coverage, edited photographs and a digital gallery.',
   ),
@@ -269,9 +278,9 @@ List<Vendor> findVendors({
             v.rating >= rating &&
             v.from <= maxPrice &&
             (query.isEmpty ||
-                '${v.name} ${v.category} ${v.area} ${v.services.join(' ')}'.toLowerCase().contains(
-                  query,
-                )),
+                '${v.name} ${v.category} ${v.area} ${v.services.join(' ')}'
+                    .toLowerCase()
+                    .contains(query)),
       )
       .toList();
   if (sort == 'price') result.sort((a, b) => a.from.compareTo(b.from));

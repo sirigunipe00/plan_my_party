@@ -75,13 +75,6 @@ class QuotesScreen extends StatelessWidget {
               'No quotes just yet.',
               'Find your party people and try a sample request.',
               icon: Icons.chat_bubble_outline,
-              action: PrimaryButton(
-                'Explore vendors',
-                onPressed: () => pushPage(
-                  context,
-                  VendorBrowsePage(store: store, eventId: eventId),
-                ),
-              ),
             ),
           ...quotes.map((v) {
             final booked = event.bookings.any((b) => b.vendorId == v.id);

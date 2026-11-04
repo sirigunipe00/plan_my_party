@@ -19,7 +19,11 @@ const _demoOtp = '123456';
 class PaymentGatewayScreen extends StatefulWidget {
   final double amount;
   final String note;
-  const PaymentGatewayScreen({super.key, required this.amount, required this.note});
+  const PaymentGatewayScreen({
+    super.key,
+    required this.amount,
+    required this.note,
+  });
 
   @override
   State<PaymentGatewayScreen> createState() => _PaymentGatewayScreenState();
@@ -115,18 +119,27 @@ class _PaymentGatewayScreenState extends State<PaymentGatewayScreen> {
       children: [
         const PageHeading(
           'Pay on this phone.',
-          subtitle: 'Card, net banking, or a wallet. You confirm the charge on this phone.',
+          subtitle:
+              'Card, net banking, or a wallet. You confirm the charge on this phone.',
         ),
         PartyCard(child: InfoPair('Celebration total', money(widget.amount))),
         gap8,
         Text(
           widget.note,
-          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.ink),
+          style: const TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            color: AppColors.ink,
+          ),
         ),
         gap24,
         const Text(
           'Payment method',
-          style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.ink),
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            color: AppColors.ink,
+          ),
         ),
         gap8,
         Wrap(
@@ -156,7 +169,11 @@ class _PaymentGatewayScreenState extends State<PaymentGatewayScreen> {
           gap16,
           const Text(
             'Confirm on this phone',
-            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.ink),
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: AppColors.ink,
+            ),
           ),
           gap8,
           Text(
@@ -215,7 +232,10 @@ class _PaymentGatewayScreenState extends State<PaymentGatewayScreen> {
                 FilteringTextInputFormatter.allow(RegExp(r'[\d/]')),
                 LengthLimitingTextInputFormatter(5),
               ],
-              decoration: const InputDecoration(labelText: 'Expiry', hintText: 'MM/YY'),
+              decoration: const InputDecoration(
+                labelText: 'Expiry',
+                hintText: 'MM/YY',
+              ),
             ),
           ),
           const SizedBox(width: 12),
@@ -251,7 +271,9 @@ class _PaymentGatewayScreenState extends State<PaymentGatewayScreen> {
     initialValue: bank,
     isExpanded: true,
     decoration: const InputDecoration(labelText: 'Bank'),
-    items: _banks.map((item) => DropdownMenuItem(value: item, child: Text(item))).toList(),
+    items: _banks
+        .map((item) => DropdownMenuItem(value: item, child: Text(item)))
+        .toList(),
     onChanged: confirming ? null : (value) => setState(() => bank = value),
   );
 
@@ -263,7 +285,9 @@ class _PaymentGatewayScreenState extends State<PaymentGatewayScreen> {
           (item) => ChoiceChip(
             label: Text(item),
             selected: wallet == item,
-            onSelected: confirming ? null : (_) => setState(() => wallet = item),
+            onSelected: confirming
+                ? null
+                : (_) => setState(() => wallet = item),
           ),
         )
         .toList(),
