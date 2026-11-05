@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'state/app_store.dart';
 import 'theme/app_theme.dart';
-import 'screens/app_shell.dart';
+import 'screens/planner_screen.dart';
 import 'screens/welcome_screen.dart';
 
 Future<void> main() async {
@@ -70,7 +70,7 @@ class _PartyAppState extends State<PartyApp> with WidgetsBindingObserver {
       scaffoldMessengerKey: messenger,
       theme: partyTheme(),
       home: widget.store.onboarded
-          ? AppShell(store: widget.store)
+          ? PlannerScreen(store: widget.store)
           : WelcomeScreen(store: widget.store),
     ),
   );

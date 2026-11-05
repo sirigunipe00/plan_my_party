@@ -25,17 +25,32 @@ class PlannerScreen extends StatefulWidget {
 }
 
 class _PlannerScreenState extends State<PlannerScreen> {
-  static const _stepNames = ['Date & time', 'Location', 'Decor & furniture'];
-  static const _groups = ['Decoration', 'Furniture'];
+  static const _stepNames = [
+    'Date & time',
+    'Location',
+    'Decoration',
+    'Furniture',
+  ];
 
-  late final EventPlan draft;
+  late EventPlan draft;
   int step = 0;
   bool submitting = false;
 
   @override
   void initState() {
     super.initState();
-    draft = widget.store.draft ?? widget.store.startDraft();
+    final existing = widget.store.draft;
+    if (existing == null) {
+      // Creating the draft notifies listeners, so do that after this first
+      // frame. The screen is built from inside the store listener.
+      draft = EventPlan(date: DateTime.now());
+      widget.store.draft = draft;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) widget.store.changed();
+      });
+    } else {
+      draft = existing;
+    }
     draft.normalizeLines();
   }
 
@@ -55,12 +70,16 @@ class _PlannerScreenState extends State<PlannerScreen> {
     child: Scaffold(
       resizeToAvoidBottomInset: false,
       appBar: AppBar(
-        leading: IconButton(
-          tooltip: 'Go back',
-          icon: const Icon(Icons.arrow_back_rounded),
-          onPressed: () => step > 0 ? _go(step - 1) : Navigator.pop(context),
-        ),
-        title: const Text('Create an event'),
+        automaticallyImplyLeading: step > 0 || Navigator.canPop(context),
+        leading: step > 0 || Navigator.canPop(context)
+            ? IconButton(
+                tooltip: 'Go back',
+                icon: const Icon(Icons.arrow_back_rounded),
+                onPressed: () =>
+                    step > 0 ? _go(step - 1) : Navigator.pop(context),
+              )
+            : null,
+        title: const Text('Plan my party'),
       ),
       body: SafeArea(
         bottom: false,
@@ -79,7 +98,8 @@ class _PlannerScreenState extends State<PlannerScreen> {
                     child: switch (step) {
                       0 => _dateTime(),
                       1 => _location(),
-                      _ => _items(),
+                      2 => _items('Decoration'),
+                      _ => _items('Furniture'),
                     },
                   ),
                 ],
@@ -113,10 +133,12 @@ class _PlannerScreenState extends State<PlannerScreen> {
                 Expanded(
                   flex: 2,
                   child: PrimaryButton(
-                    step < 2
+                    step < _stepNames.length - 1
                         ? 'Next'
                         : (submitting ? 'Creating…' : 'Create Event'),
-                    icon: step < 2 ? Icons.arrow_forward_rounded : Icons.check,
+                    icon: step < _stepNames.length - 1
+                        ? Icons.arrow_forward_rounded
+                        : Icons.check,
                     onPressed: submitting ? null : _next,
                   ),
                 ),
@@ -132,7 +154,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
       Text(
-        'Step ${step + 1} of 3',
+        'Step ${step + 1} of ${_stepNames.length}',
         style: const TextStyle(
           fontSize: 11,
           color: AppColors.purple,
@@ -142,10 +164,12 @@ class _PlannerScreenState extends State<PlannerScreen> {
       gap8,
       Row(
         children: List.generate(
-          3,
+          _stepNames.length,
           (i) => Expanded(
             child: Padding(
-              padding: EdgeInsets.only(right: i < 2 ? 6 : 0),
+              padding: EdgeInsets.only(
+                right: i < _stepNames.length - 1 ? 6 : 0,
+              ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -221,6 +245,21 @@ class _PlannerScreenState extends State<PlannerScreen> {
             ),
           ),
         ],
+      ),
+      Expanded(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 20),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(23),
+            child: SizedBox.expand(
+              child: Image.asset(
+                'assets/images/celebration.jpg',
+                fit: BoxFit.cover,
+                semanticLabel: 'Celebration',
+              ),
+            ),
+          ),
+        ),
       ),
     ],
   );
@@ -374,85 +413,51 @@ class _PlannerScreenState extends State<PlannerScreen> {
         ),
       );
 
-  Widget _items() => Column(
-    key: const ValueKey('step-items'),
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      _heading('Decoration & furniture', 'Optional. Tap the items you need.'),
-      Expanded(
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            // Size the rows so both groups fit on screen; only a very small
-            // screen falls back to scrolling.
-            final rowHeight = ((constraints.maxHeight - 150) / 6).clamp(
-              58.0,
-              76.0,
-            );
-            final count = draft.lines.fold<int>(
-              0,
-              (sum, line) => sum + line.quantity,
-            );
-            return SingleChildScrollView(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  for (final group in _groups) ...[
-                    Text(group, style: Theme.of(context).textTheme.titleMedium),
-                    gap8,
-                    ..._rows(group, rowHeight),
-                    if (group != _groups.last) gap12,
-                  ],
-                  gap8,
-                  Text(
-                    count == 0
-                        ? 'No items selected yet'
-                        : '$count selected · ${money(draft.itemsTotal)}',
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: AppColors.purple,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
-              ),
-            );
-          },
-        ),
-      ),
-    ],
-  );
-
-  List<Widget> _rows(String group, double height) {
-    final items = offeringsFor(group);
-    return [
-      for (var i = 0; i < items.length; i += 2)
-        Padding(
-          padding: const EdgeInsets.only(bottom: 8),
-          child: Row(
+  Widget _items(String group) {
+    final count = draft.lines.fold<int>(0, (sum, line) => sum + line.quantity);
+    return Column(
+      key: ValueKey('step-${group.toLowerCase()}'),
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _heading(group, 'Select at least one item.'),
+        Expanded(
+          child: ListView(
+            physics: const AlwaysScrollableScrollPhysics(),
             children: [
-              Expanded(child: _tile(items[i], height)),
-              const SizedBox(width: 8),
-              Expanded(
-                child: i + 1 < items.length
-                    ? _tile(items[i + 1], height)
-                    : const SizedBox.shrink(),
-              ),
+              for (final item in offeringsFor(group))
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: _tile(item),
+                ),
             ],
           ),
         ),
-    ];
+        gap8,
+        Text(
+          count == 0
+              ? 'No items selected yet'
+              : '$count selected · ${money(draft.itemsTotal)}',
+          style: const TextStyle(
+            fontSize: 12,
+            color: AppColors.purple,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ],
+    );
   }
 
-  Widget _tile(Offering item, double height) {
+  Widget _tile(Offering item) {
     final quantity = _quantity(item);
     final selected = quantity > 0;
-    final image = height - 12;
+    const height = 124.0;
+    const image = 108.0;
     return SizedBox(
       height: height,
       child: Semantics(
         button: true,
         selected: selected,
-        label: item.name,
+        label: '${item.name}. ${item.detail}',
         child: Material(
           color: selected ? AppColors.lavender : Colors.white,
           clipBehavior: Clip.antiAlias,
@@ -466,7 +471,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
             key: ValueKey('add-${item.id}'),
             onTap: selected ? null : () => _setQuantity(item, 1),
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               child: Row(
                 children: [
                   ClipRRect(
@@ -497,6 +502,17 @@ class _PlannerScreenState extends State<PlannerScreen> {
                           ),
                         ),
                         const SizedBox(height: 2),
+                        Text(
+                          item.detail,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 10,
+                            height: 1.3,
+                            color: AppColors.muted,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
                         if (selected)
                           FittedBox(
                             fit: BoxFit.scaleDown,
@@ -571,11 +587,22 @@ class _PlannerScreenState extends State<PlannerScreen> {
           return 'Search and select an event location.';
         }
         return null;
+      case 2:
+        if (!_hasItem('Decoration')) {
+          return 'Select at least one decoration item.';
+        }
+        return null;
       default:
-        // Decoration and furniture are optional.
+        if (!_hasItem('Furniture')) {
+          return 'Select at least one furniture item.';
+        }
         return null;
     }
   }
+
+  bool _hasItem(String group) => draft.lines.any(
+    (line) => line.group == group && line.quantity > 0,
+  );
 
   Future<void> _next() async {
     FocusScope.of(context).unfocus();
@@ -584,7 +611,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
       notify(context, error);
       return;
     }
-    if (step < 2) {
+    if (step < _stepNames.length - 1) {
       _go(step + 1);
       return;
     }
@@ -604,7 +631,16 @@ class _PlannerScreenState extends State<PlannerScreen> {
       widget.store.saveEvent();
       await widget.store.persist();
       if (!mounted) return;
-      navigator.pop();
+      if (navigator.canPop()) {
+        navigator.pop();
+      } else {
+        setState(() {
+          submitting = false;
+          step = 0;
+          draft = widget.store.startDraft();
+          draft.normalizeLines();
+        });
+      }
       messenger
         ..hideCurrentSnackBar()
         ..showSnackBar(

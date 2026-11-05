@@ -27,7 +27,7 @@ void main() {
   });
   tearDown(() => store.dispose());
 
-  testWidgets('guest creates an event in three separate steps', (tester) async {
+  testWidgets('guest creates an event in four separate steps', (tester) async {
     tester.view.physicalSize = const Size(390, 844);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
@@ -37,23 +37,33 @@ void main() {
     await tester.ensureVisible(find.text('Explore as a guest →'));
     await tester.tap(find.text('Explore as a guest →'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Plan an event'));
-    await tester.pumpAndSettle();
 
-    // Step 1: date & time.
-    expect(find.text('Step 1 of 3'), findsOneWidget);
+    // Step 1: date & time, with the logo and no scrolling.
+    expect(find.text('Plan my party'), findsOneWidget);
+    expect(find.text('Step 1 of 4'), findsOneWidget);
     expect(find.byKey(const ValueKey('step-date-time')), findsOneWidget);
     expect(find.text('Starts at'), findsOneWidget);
+    expect(
+      find.image(const AssetImage('assets/images/celebration.jpg')),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(
+        of: find.byKey(const ValueKey('step-date-time')),
+        matching: find.byType(Scrollable),
+      ),
+      findsNothing,
+    );
     expect(find.text('Back'), findsNothing);
     await tester.tap(find.text('Next'));
     await tester.pumpAndSettle();
 
     // Step 2: location is required before moving on.
-    expect(find.text('Step 2 of 3'), findsOneWidget);
+    expect(find.text('Step 2 of 4'), findsOneWidget);
     expect(find.byType(VenuePicker), findsOneWidget);
     await tester.tap(find.text('Next'));
     await tester.pumpAndSettle();
-    expect(find.text('Step 2 of 3'), findsOneWidget);
+    expect(find.text('Step 2 of 4'), findsOneWidget);
     expect(find.text('Search and select an event location.'), findsOneWidget);
     tester
         .widget<VenuePicker>(find.byType(VenuePicker))
@@ -61,29 +71,56 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('Back'));
     await tester.pumpAndSettle();
-    expect(find.text('Step 1 of 3'), findsOneWidget);
+    expect(find.text('Step 1 of 4'), findsOneWidget);
     await tester.tap(find.text('Next'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Next'));
     await tester.pumpAndSettle();
 
-    // Step 3: decoration & furniture, no scrolling, then Create Event.
-    expect(find.text('Step 3 of 3'), findsOneWidget);
-    final scrollable = find.descendant(
-      of: find.byKey(const ValueKey('step-items')),
+    // Step 3: decoration is its own scrollable screen and needs one item.
+    expect(find.text('Step 3 of 4'), findsOneWidget);
+    expect(find.byKey(const ValueKey('step-decoration')), findsOneWidget);
+    expect(
+      find.text('Fresh flowers for the tables and stage'),
+      findsOneWidget,
+    );
+    final decorationScroll = find.descendant(
+      of: find.byKey(const ValueKey('step-decoration')),
       matching: find.byType(Scrollable),
     );
     expect(
-      tester.state<ScrollableState>(scrollable).position.maxScrollExtent,
-      0,
+      tester
+          .state<ScrollableState>(decorationScroll)
+          .position
+          .maxScrollExtent,
+      greaterThan(0),
     );
-    // Items are optional, repeatable, and the budget follows the quantity.
+    await tester.tap(find.text('Next'));
+    await tester.pumpAndSettle();
+    expect(find.text('Select at least one decoration item.'), findsOneWidget);
     await tester.tap(find.byKey(const ValueKey('add-flowers')));
     await tester.pumpAndSettle();
     await tester.tap(find.byTooltip('Add another Floral arrangement'));
     await tester.tap(find.byTooltip('Add another Floral arrangement'));
     await tester.tap(find.byTooltip('Remove one Floral arrangement'));
     await tester.pumpAndSettle();
+    await tester.tap(find.text('Next'));
+    await tester.pumpAndSettle();
+
+    // Step 4: furniture is scrollable and needs one item before create.
+    expect(find.text('Step 4 of 4'), findsOneWidget);
+    expect(find.byKey(const ValueKey('step-furniture')), findsOneWidget);
+    final furnitureScroll = find.descendant(
+      of: find.byKey(const ValueKey('step-furniture')),
+      matching: find.byType(Scrollable),
+    );
+    expect(
+      tester.state<ScrollableState>(furnitureScroll).position.maxScrollExtent,
+      greaterThan(0),
+    );
+    await tester.tap(find.text('Create Event'));
+    await tester.pumpAndSettle();
+    expect(find.text('Select at least one furniture item.'), findsOneWidget);
     await tester.tap(find.byKey(const ValueKey('add-chairs')));
     await tester.pumpAndSettle();
     expect(find.text('3 selected · ₹11,500'), findsOneWidget);
@@ -98,48 +135,13 @@ void main() {
     ]);
     expect(store.events.first.lines.map((line) => line.quantity), [2, 1]);
     expect(store.events.first.budget, 11500);
-    expect(store.draft, isNull);
     expect(find.text('Your event has been created.'), findsOneWidget);
+    expect(find.text('Step 1 of 4'), findsOneWidget);
     expect(tester.takeException(), isNull);
     await store.persist();
     final restored = await AppStore.load();
     expect(restored.events.first.lines.length, 2);
     restored.dispose();
-    await tester.pumpWidget(const SizedBox());
-  });
-
-  testWidgets('an event can be created without any decoration or furniture', (
-    tester,
-  ) async {
-    tester.view.physicalSize = const Size(390, 844);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(tester.view.resetPhysicalSize);
-    addTearDown(tester.view.resetDevicePixelRatio);
-    await tester.pumpWidget(PartyApp(store: store));
-    await tester.pumpAndSettle();
-    await tester.ensureVisible(find.text('Explore as a guest →'));
-    await tester.tap(find.text('Explore as a guest →'));
-    await tester.pumpAndSettle();
-    final before = store.events.length;
-    await tester.tap(find.text('Plan an event'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Next'));
-    await tester.pumpAndSettle();
-    tester
-        .widget<VenuePicker>(find.byType(VenuePicker))
-        .onPicked(const VenuePick('Sunny Hall, Hyderabad', 17.4156, 78.4347));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Next'));
-    await tester.pumpAndSettle();
-    expect(find.text('Step 3 of 3'), findsOneWidget);
-    expect(find.text('No items selected yet'), findsOneWidget);
-    await tester.tap(find.text('Create Event'));
-    await tester.pumpAndSettle();
-    expect(store.events.length, before + 1);
-    expect(store.events.first.lines, isEmpty);
-    expect(find.text('Your event has been created.'), findsOneWidget);
-    expect(tester.takeException(), isNull);
-    await store.persist();
     await tester.pumpWidget(const SizedBox());
   });
 
@@ -184,12 +186,8 @@ void main() {
         store.onboarded = true;
         await tester.pumpWidget(PartyApp(store: store));
         await tester.pumpAndSettle();
+        expect(find.text('Plan my party'), findsOneWidget);
         expect(tester.takeException(), isNull);
-        for (final tab in ['My events', 'Profile']) {
-          await tester.tap(find.text(tab).last);
-          await tester.pumpAndSettle();
-          expect(tester.takeException(), isNull, reason: tab);
-        }
         final event = store.events.first;
         for (final screen in <Widget>[
           VendorDetailScreen(store: store, vendor: vendors.first),
