@@ -13,7 +13,8 @@ void main() {
       expect(request.url.host, 'nominatim.openstreetmap.org');
       expect(request.method, 'GET');
       expect(request.url.queryParameters['format'], 'jsonv2');
-      expect(request.url.queryParameters['q'], 'Sunny Hall');
+      expect(request.url.queryParameters['countrycodes'], 'in');
+      expect(request.url.queryParameters['q'], 'Sunny Hall, India');
       return http.Response(
         jsonEncode([
           {
@@ -25,17 +26,30 @@ void main() {
         200,
       );
     });
-    final places = await OpenMapSearch(client: client).search('Sunny Hall');
+    final places = await OpenMapSearch(
+      client: client,
+      includeIndiaCatalog: false,
+    ).search('Sunny Hall');
     expect(places.single.label, 'Sunny Hall, Hyderabad');
     expect(places.single.latitude, 17.4);
     expect(places.single.longitude, 78.4);
     client.close();
   });
 
+  test('India catalog suggests door numbers and localities', () async {
+    final client = MockClient((_) async => http.Response('[]', 200));
+    final places = await OpenMapSearch(client: client).search(
+      'Door No. 12-2-418 Asif',
+    );
+    expect(places, isNotEmpty);
+    expect(places.any((place) => place.label.contains('Asif Nagar')), isTrue);
+    client.close();
+  });
+
   test('API failures are reported', () async {
     final client = MockClient((_) async => http.Response('{}', 403));
     await expectLater(
-      OpenMapSearch(client: client).search('Hall'),
+      OpenMapSearch(client: client, includeIndiaCatalog: false).search('Hall'),
       throwsStateError,
     );
     client.close();

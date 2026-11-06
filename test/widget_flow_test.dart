@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:plan_my_party/main.dart';
+import 'package:plan_my_party/models/models.dart';
 import 'package:plan_my_party/widgets/venue_picker.dart';
 import 'package:plan_my_party/state/app_store.dart';
 import 'package:plan_my_party/screens/planner_screen.dart';
@@ -11,6 +12,7 @@ import 'package:plan_my_party/screens/quote_screens.dart';
 import 'package:plan_my_party/screens/event_screens.dart';
 import 'package:plan_my_party/screens/profile_screens.dart';
 import 'package:plan_my_party/data/catalog.dart';
+import 'package:plan_my_party/services/vendor_order_api.dart';
 import 'package:plan_my_party/theme/app_theme.dart';
 
 void main() {
@@ -27,7 +29,9 @@ void main() {
   });
   tearDown(() => store.dispose());
 
-  testWidgets('guest creates an event in four separate steps', (tester) async {
+  testWidgets('home opens create event with date, location and categories', (
+    tester,
+  ) async {
     tester.view.physicalSize = const Size(390, 844);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
@@ -38,110 +42,130 @@ void main() {
     await tester.tap(find.text('Explore as a guest →'));
     await tester.pumpAndSettle();
 
-    // Step 1: date & time, with the logo and no scrolling.
-    expect(find.text('Plan my party'), findsOneWidget);
-    expect(find.text('Step 1 of 4'), findsOneWidget);
+    expect(find.textContaining('Your Next Memory'), findsOneWidget);
+    await tester.tap(find.text('Plan an Event'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Create Event'), findsOneWidget);
+    expect(find.text('Step 1 of 6'), findsOneWidget);
     expect(find.byKey(const ValueKey('step-date-time')), findsOneWidget);
-    expect(find.text('Starts at'), findsOneWidget);
-    expect(
-      find.image(const AssetImage('assets/images/celebration.jpg')),
-      findsOneWidget,
-    );
-    expect(
-      find.descendant(
-        of: find.byKey(const ValueKey('step-date-time')),
-        matching: find.byType(Scrollable),
-      ),
-      findsNothing,
-    );
-    expect(find.text('Back'), findsNothing);
     await tester.tap(find.text('Next'));
     await tester.pumpAndSettle();
 
-    // Step 2: location is required before moving on.
-    expect(find.text('Step 2 of 4'), findsOneWidget);
     expect(find.byType(VenuePicker), findsOneWidget);
-    await tester.tap(find.text('Next'));
-    await tester.pumpAndSettle();
-    expect(find.text('Step 2 of 4'), findsOneWidget);
-    expect(find.text('Search and select an event location.'), findsOneWidget);
     tester
         .widget<VenuePicker>(find.byType(VenuePicker))
         .onPicked(const VenuePick('Sunny Hall, Hyderabad', 17.4156, 78.4347));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Back'));
-    await tester.pumpAndSettle();
-    expect(find.text('Step 1 of 4'), findsOneWidget);
-    await tester.tap(find.text('Next'));
-    await tester.pumpAndSettle();
     await tester.tap(find.text('Next'));
     await tester.pumpAndSettle();
 
-    // Step 3: decoration is its own scrollable screen and needs one item.
-    expect(find.text('Step 3 of 4'), findsOneWidget);
-    expect(find.byKey(const ValueKey('step-decoration')), findsOneWidget);
-    expect(
-      find.text('Fresh flowers for the tables and stage'),
-      findsOneWidget,
-    );
-    final decorationScroll = find.descendant(
-      of: find.byKey(const ValueKey('step-decoration')),
-      matching: find.byType(Scrollable),
-    );
-    expect(
-      tester
-          .state<ScrollableState>(decorationScroll)
-          .position
-          .maxScrollExtent,
-      greaterThan(0),
-    );
-    await tester.tap(find.text('Next'));
+    expect(find.text('Party Decorations'), findsOneWidget);
+    expect(find.text('Furniture'), findsOneWidget);
+    expect(find.text('Party Props'), findsOneWidget);
+    expect(find.text('Other Party Needs'), findsOneWidget);
+    await tester.tap(find.text('Furniture'));
     await tester.pumpAndSettle();
-    expect(find.text('Select at least one decoration item.'), findsOneWidget);
-    await tester.tap(find.byKey(const ValueKey('add-flowers')));
-    await tester.pumpAndSettle();
-    await tester.tap(find.byTooltip('Add another Floral arrangement'));
-    await tester.tap(find.byTooltip('Add another Floral arrangement'));
-    await tester.tap(find.byTooltip('Remove one Floral arrangement'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Next'));
-    await tester.pumpAndSettle();
-
-    // Step 4: furniture is scrollable and needs one item before create.
-    expect(find.text('Step 4 of 4'), findsOneWidget);
-    expect(find.byKey(const ValueKey('step-furniture')), findsOneWidget);
-    final furnitureScroll = find.descendant(
-      of: find.byKey(const ValueKey('step-furniture')),
-      matching: find.byType(Scrollable),
-    );
-    expect(
-      tester.state<ScrollableState>(furnitureScroll).position.maxScrollExtent,
-      greaterThan(0),
-    );
-    await tester.tap(find.text('Create Event'));
-    await tester.pumpAndSettle();
-    expect(find.text('Select at least one furniture item.'), findsOneWidget);
     await tester.tap(find.byKey(const ValueKey('add-chairs')));
     await tester.pumpAndSettle();
-    expect(find.text('3 selected · ₹11,500'), findsOneWidget);
-    await tester.tap(find.text('Create Event'));
+    await tester.tap(find.byTooltip('Add another Guest chairs'));
     await tester.pumpAndSettle();
-    expect(store.events.first.location, 'Sunny Hall, Hyderabad');
-    expect(store.events.first.latitude, 17.4156);
-    expect(store.events.first.longitude, 78.4347);
-    expect(store.events.first.lines.map((line) => line.id), [
-      'flowers',
-      'chairs',
-    ]);
-    expect(store.events.first.lines.map((line) => line.quantity), [2, 1]);
-    expect(store.events.first.budget, 11500);
-    expect(find.text('Your event has been created.'), findsOneWidget);
-    expect(find.text('Step 1 of 4'), findsOneWidget);
+    await tester.tap(find.text('Done'));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('2 items selected'), findsOneWidget);
     expect(tester.takeException(), isNull);
-    await store.persist();
-    final restored = await AppStore.load();
-    expect(restored.events.first.lines.length, 2);
-    restored.dispose();
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('summary charges, vendor approval and payment confirm booking', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    store.draft = EventPlan(date: DateTime.now())
+      ..start = '18:00'
+      ..end = '23:00'
+      ..location = 'Sunny Hall, Hyderabad'
+      ..latitude = 17.4156
+      ..longitude = 78.4347
+      ..lines.addAll([
+        ServiceLine(
+          id: 'flowers',
+          group: 'Decoration',
+          name: 'Floral arrangement',
+          price: 4500,
+          quantity: 1,
+        ),
+        ServiceLine(
+          id: 'chairs',
+          group: 'Furniture',
+          name: 'Guest chairs',
+          price: 2500,
+          quantity: 2,
+        ),
+      ]);
+
+    final api = _ScriptedVendorApi();
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: partyTheme(),
+        home: PlannerScreen(store: store, vendorApi: api),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Next'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Next'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Next'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Order summary'), findsOneWidget);
+    expect(find.text('Delivery charge'), findsOneWidget);
+    expect(find.text('Setup charge'), findsOneWidget);
+    await tester.tap(find.text('Request vendor approval'));
+    await tester.pump(); // show vendor pending
+    expect(find.byKey(const ValueKey('step-vendor')), findsOneWidget);
+
+    // Poll 1 pending → wait → poll 2 accepted → wait → auto payment.
+    await tester.pump(const Duration(milliseconds: 850));
+    await tester.pump(const Duration(milliseconds: 50));
+    await tester.pump(const Duration(milliseconds: 850));
+    expect(find.byKey(const ValueKey('step-payment')), findsOneWidget);
+    await tester.tap(find.text('Pay now'));
+    await tester.pumpAndSettle();
+
+    await tester.enterText(
+      find.byKey(const ValueKey('payment-card-number')),
+      '4111111111111111',
+    );
+    await tester.enterText(
+      find.byKey(const ValueKey('payment-expiry')),
+      '12/30',
+    );
+    await tester.enterText(find.byKey(const ValueKey('payment-cvv')), '123');
+    await tester.enterText(
+      find.byKey(const ValueKey('payment-name')),
+      'Ananya Rao',
+    );
+    await tester.tap(find.text('Pay now').last);
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byKey(const ValueKey('payment-otp')),
+      '123456',
+    );
+    await tester.tap(find.text('Confirm payment'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Booking confirmed'), findsOneWidget);
+    expect(store.events.first.paid, isTrue);
+    expect(store.events.first.deliveryCharge, greaterThan(0));
+    expect(store.events.first.lines.length, 2);
+    expect(tester.takeException(), isNull);
     await tester.pumpWidget(const SizedBox());
   });
 
@@ -186,7 +210,7 @@ void main() {
         store.onboarded = true;
         await tester.pumpWidget(PartyApp(store: store));
         await tester.pumpAndSettle();
-        expect(find.text('Plan my party'), findsOneWidget);
+        expect(find.text('Plan an Event'), findsOneWidget);
         expect(tester.takeException(), isNull);
         final event = store.events.first;
         for (final screen in <Widget>[
@@ -222,6 +246,44 @@ void main() {
         await store.persist();
         await tester.pumpWidget(const SizedBox());
       },
+    );
+  }
+}
+
+class _ScriptedVendorApi implements VendorOrderApi {
+  var statusChecks = 0;
+
+  @override
+  Future<VendorOrder> submit({
+    required String eventName,
+    required String location,
+    required double latitude,
+    required double longitude,
+    required double amount,
+    required List<Map<String, dynamic>> items,
+  }) async => const VendorOrder(
+    id: 'VO-test',
+    status: VendorOrderStatus.pending,
+    vendorName: 'Seat Well',
+    message: 'Waiting for Seat Well to accept your order.',
+  );
+
+  @override
+  Future<VendorOrder> status(String orderId) async {
+    statusChecks += 1;
+    if (statusChecks < 2) {
+      return const VendorOrder(
+        id: 'VO-test',
+        status: VendorOrderStatus.pending,
+        vendorName: 'Seat Well',
+        message: 'Waiting for Seat Well to accept your order.',
+      );
+    }
+    return const VendorOrder(
+      id: 'VO-test',
+      status: VendorOrderStatus.accepted,
+      vendorName: 'Seat Well',
+      message: 'Seat Well accepted your order. Opening payment…',
     );
   }
 }

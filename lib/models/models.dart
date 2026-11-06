@@ -161,7 +161,9 @@ class EventPlan {
   DateTime date, created;
   int guests;
   double budget;
-  bool sample, occasionChosen;
+  double deliveryCharge, pickupCharge, setupCharge, distanceKm;
+  String vendorOrderId, vendorStatus, vendorName;
+  bool sample, occasionChosen, paid;
   double? latitude, longitude;
   List<String> services, quotes;
   List<ServiceLine> lines;
@@ -180,9 +182,17 @@ class EventPlan {
     this.description = '',
     this.guests = 150,
     this.budget = 100000,
+    this.deliveryCharge = 0,
+    this.pickupCharge = 0,
+    this.setupCharge = 0,
+    this.distanceKm = 0,
+    this.vendorOrderId = '',
+    this.vendorStatus = '',
+    this.vendorName = '',
     this.status = 'Upcoming',
     this.sample = false,
     this.occasionChosen = false,
+    this.paid = false,
     this.latitude,
     this.longitude,
     DateTime? created,
@@ -212,9 +222,11 @@ class EventPlan {
        requests = requests ?? [],
        balloons = balloons ?? BalloonSpec();
   double get itemsTotal => lines.fold(0, (sum, line) => sum + line.total);
+  double get extrasTotal => deliveryCharge + pickupCharge + setupCharge;
+  double get orderTotal => itemsTotal + extrasTotal;
   void applyLines() {
     if (lines.isEmpty) return;
-    budget = itemsTotal;
+    budget = orderTotal > 0 ? orderTotal : itemsTotal;
     services = lines.map((line) => line.name).toList();
   }
 
@@ -303,9 +315,17 @@ class EventPlan {
     'description': description,
     'guests': guests,
     'budget': budget,
+    'deliveryCharge': deliveryCharge,
+    'pickupCharge': pickupCharge,
+    'setupCharge': setupCharge,
+    'distanceKm': distanceKm,
+    'vendorOrderId': vendorOrderId,
+    'vendorStatus': vendorStatus,
+    'vendorName': vendorName,
     'status': status,
     'sample': sample,
     'occasionChosen': occasionChosen,
+    'paid': paid,
     'latitude': latitude,
     'longitude': longitude,
     'created': created.toIso8601String(),
@@ -328,9 +348,17 @@ class EventPlan {
     description: j['description'] as String? ?? '',
     guests: j['guests'] as int? ?? 150,
     budget: (j['budget'] as num? ?? 100000).toDouble(),
+    deliveryCharge: (j['deliveryCharge'] as num? ?? 0).toDouble(),
+    pickupCharge: (j['pickupCharge'] as num? ?? 0).toDouble(),
+    setupCharge: (j['setupCharge'] as num? ?? 0).toDouble(),
+    distanceKm: (j['distanceKm'] as num? ?? 0).toDouble(),
+    vendorOrderId: j['vendorOrderId'] as String? ?? '',
+    vendorStatus: j['vendorStatus'] as String? ?? '',
+    vendorName: j['vendorName'] as String? ?? '',
     status: j['status'] as String? ?? 'Upcoming',
     sample: j['sample'] as bool? ?? false,
     occasionChosen: j['occasionChosen'] as bool? ?? false,
+    paid: j['paid'] as bool? ?? false,
     latitude: (j['latitude'] as num?)?.toDouble(),
     longitude: (j['longitude'] as num?)?.toDouble(),
     created: DateTime.tryParse(j['created'] as String? ?? '') ?? DateTime.now(),

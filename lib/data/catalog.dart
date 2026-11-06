@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import '../models/models.dart';
 
 const eventTypes = [
@@ -12,6 +13,9 @@ const eventTypes = [
 class Offering {
   final String id, group, name, detail, image;
   final double price;
+  /// How many physical pieces are included in one ordered item, e.g. 10 chairs.
+  final int? packSize;
+  final String? packUnit;
   const Offering({
     required this.id,
     required this.group,
@@ -19,8 +23,64 @@ class Offering {
     required this.detail,
     required this.image,
     required this.price,
+    this.packSize,
+    this.packUnit,
+  });
+
+  String? get packLabel {
+    if (packSize == null || packUnit == null) return null;
+    return '$packSize $packUnit per set';
+  }
+}
+
+class PartyCategory {
+  final String id, label, blurb, image;
+  final IconData icon;
+  final Color tint;
+  const PartyCategory({
+    required this.id,
+    required this.label,
+    required this.blurb,
+    required this.image,
+    required this.icon,
+    required this.tint,
   });
 }
+
+const partyCategories = <PartyCategory>[
+  PartyCategory(
+    id: 'Decoration',
+    label: 'Party Decorations',
+    blurb: 'Flowers, balloons, lights, and finishing touches',
+    image: 'decoration.jpg',
+    icon: Icons.auto_awesome_outlined,
+    tint: Color(0xffF5E5EC),
+  ),
+  PartyCategory(
+    id: 'Furniture',
+    label: 'Furniture',
+    blurb: 'Seating, tables, and a comfortable setup',
+    image: 'furniture.jpg',
+    icon: Icons.chair_outlined,
+    tint: Color(0xffE6EDE8),
+  ),
+  PartyCategory(
+    id: 'Party Props',
+    label: 'Party Props',
+    blurb: 'Photo moments, music, and playful extras',
+    image: 'camera.jpg',
+    icon: Icons.celebration_outlined,
+    tint: Color(0xffF7E7DE),
+  ),
+  PartyCategory(
+    id: 'Other Party Needs',
+    label: 'Other Party Needs',
+    blurb: 'Stage, entrance, and everything else you need',
+    image: 'stage.jpg',
+    icon: Icons.inventory_2_outlined,
+    tint: Color(0xffEBE5F6),
+  ),
+];
 
 const serviceCatalog = <({String name, String image, String blurb})>[
   (
@@ -53,22 +113,6 @@ const offerings = <Offering>[
     price: 6500,
   ),
   Offering(
-    id: 'stage',
-    group: 'Decoration',
-    name: 'Stage backdrop',
-    detail: 'Draped backdrop with soft lighting',
-    image: 'stage.jpg',
-    price: 12000,
-  ),
-  Offering(
-    id: 'entrance',
-    group: 'Decoration',
-    name: 'Entrance decoration',
-    detail: 'Garlands and a welcome setup',
-    image: 'entrance.jpg',
-    price: 3500,
-  ),
-  Offering(
     id: 'theme',
     group: 'Decoration',
     name: 'Theme styling',
@@ -88,9 +132,11 @@ const offerings = <Offering>[
     id: 'chairs',
     group: 'Furniture',
     name: 'Guest chairs',
-    detail: 'A set of 10 cushioned chairs',
+    detail: 'Cushioned chairs for your guests',
     image: 'chairs.jpg',
     price: 2500,
+    packSize: 10,
+    packUnit: 'chairs',
   ),
   Offering(
     id: 'tables',
@@ -99,22 +145,28 @@ const offerings = <Offering>[
     detail: 'Round table dressed with linen',
     image: 'tables.jpg',
     price: 1800,
+    packSize: 1,
+    packUnit: 'table',
   ),
   Offering(
     id: 'sofa',
     group: 'Furniture',
     name: 'Lounge sofa',
-    detail: 'A two-seater for a relaxed corner',
+    detail: 'A relaxed corner seating set',
     image: 'sofa.jpg',
     price: 4000,
+    packSize: 1,
+    packUnit: 'sofa',
   ),
   Offering(
     id: 'dining',
     group: 'Furniture',
     name: 'Dining table',
-    detail: 'Seats eight, with place settings',
+    detail: 'Dining table with place settings',
     image: 'dining.jpg',
     price: 3200,
+    packSize: 1,
+    packUnit: 'table (seats 8)',
   ),
   Offering(
     id: 'vip',
@@ -123,6 +175,8 @@ const offerings = <Offering>[
     detail: 'A dressed seating set for the hosts',
     image: 'vip.jpg',
     price: 7500,
+    packSize: 4,
+    packUnit: 'seats',
   ),
   Offering(
     id: 'lounge',
@@ -131,11 +185,68 @@ const offerings = <Offering>[
     detail: 'Low tables and extra seating',
     image: 'lounge.jpg',
     price: 5400,
+    packSize: 6,
+    packUnit: 'pieces',
+  ),
+  Offering(
+    id: 'photo-booth',
+    group: 'Party Props',
+    name: 'Photo booth props',
+    detail: 'Signs, frames, and playful accessories',
+    image: 'camera.jpg',
+    price: 2200,
+  ),
+  Offering(
+    id: 'music-kit',
+    group: 'Party Props',
+    name: 'Music & speaker kit',
+    detail: 'Portable speakers for a lively playlist',
+    image: 'music.jpg',
+    price: 4500,
+  ),
+  Offering(
+    id: 'party-favors',
+    group: 'Party Props',
+    name: 'Party favors set',
+    detail: 'Take-home treats for your guests',
+    image: 'celebration.jpg',
+    price: 1800,
+  ),
+  Offering(
+    id: 'stage',
+    group: 'Other Party Needs',
+    name: 'Stage backdrop',
+    detail: 'Draped backdrop with soft lighting',
+    image: 'stage.jpg',
+    price: 12000,
+  ),
+  Offering(
+    id: 'entrance',
+    group: 'Other Party Needs',
+    name: 'Entrance decoration',
+    detail: 'Garlands and a welcome setup',
+    image: 'entrance.jpg',
+    price: 3500,
+  ),
+  Offering(
+    id: 'wedding-setup',
+    group: 'Other Party Needs',
+    name: 'Ceremony setup kit',
+    detail: 'A polished setup for special occasions',
+    image: 'wedding.jpg',
+    price: 15000,
   ),
 ];
 
 List<Offering> offeringsFor(String group) =>
     offerings.where((item) => item.group == group).toList();
+
+PartyCategory? categoryById(String id) {
+  for (final category in partyCategories) {
+    if (category.id == id) return category;
+  }
+  return null;
+}
 
 const vendors = <Vendor>[
   Vendor(

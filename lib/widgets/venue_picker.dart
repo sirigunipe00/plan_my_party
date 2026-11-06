@@ -6,6 +6,7 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:http/http.dart' as http;
 
+import '../data/india_places.dart';
 import '../theme/app_theme.dart';
 import 'common.dart';
 
@@ -18,64 +19,95 @@ class VenuePick {
 class OpenMapSearch {
   final http.Client? client;
   final String endpoint;
+  final bool includeIndiaCatalog;
   const OpenMapSearch({
     this.client,
     this.endpoint = const String.fromEnvironment(
       'LOCATION_SEARCH_URL',
       defaultValue: 'https://nominatim.openstreetmap.org/search',
     ),
+    this.includeIndiaCatalog = true,
   });
 
   Future<List<VenuePick>> search(String query) async {
+    final cleaned = query.trim();
+    final local = includeIndiaCatalog
+        ? searchIndiaPlaces(cleaned, limit: 8)
+        : const <VenuePick>[];
+
+    final enriched = cleaned.toLowerCase().contains('india')
+        ? cleaned
+        : '$cleaned, India';
     final uri = Uri.parse(endpoint).replace(
       queryParameters: {
-        'q': query.trim(),
-        'limit': '6',
+        'q': enriched,
+        'limit': '8',
         'format': 'jsonv2',
         'addressdetails': '1',
+        'countrycodes': 'in',
       },
     );
-    final response =
-        await (client == null
-                ? http.get(
-                    uri,
-                    headers: const {
-                      'Accept': 'application/json',
-                      'User-Agent': 'PlanMyParty/1.0 (celebration planner)',
-                    },
-                  )
-                : client!.get(
-                    uri,
-                    headers: const {
-                      'Accept': 'application/json',
-                      'User-Agent': 'PlanMyParty/1.0 (celebration planner)',
-                    },
-                  ))
-            .timeout(const Duration(seconds: 10));
-    if (response.statusCode != 200) {
-      throw StateError('Location search failed');
+    try {
+      final response =
+          await (client == null
+                  ? http.get(
+                      uri,
+                      headers: const {
+                        'Accept': 'application/json',
+                        'User-Agent': 'PlanMyParty/1.0 (celebration planner)',
+                      },
+                    )
+                  : client!.get(
+                      uri,
+                      headers: const {
+                        'Accept': 'application/json',
+                        'User-Agent': 'PlanMyParty/1.0 (celebration planner)',
+                      },
+                    ))
+              .timeout(const Duration(seconds: 10));
+      if (response.statusCode != 200) {
+        if (local.isNotEmpty) return local;
+        throw StateError('Location search failed');
+      }
+      final data = jsonDecode(response.body);
+      final remote = data is! List
+          ? const <VenuePick>[]
+          : data
+                .whereType<Map>()
+                .map((row) {
+                  final latitude = double.tryParse('${row['lat']}');
+                  final longitude = double.tryParse('${row['lon']}');
+                  final label = '${row['display_name'] ?? ''}'.trim();
+                  if (latitude == null ||
+                      longitude == null ||
+                      label.isEmpty ||
+                      !latitude.isFinite ||
+                      !longitude.isFinite ||
+                      latitude.abs() > 90 ||
+                      longitude.abs() > 180) {
+                    return null;
+                  }
+                  return VenuePick(label, latitude, longitude);
+                })
+                .whereType<VenuePick>()
+                .toList();
+      return _mergePlaces(local, remote);
+    } catch (_) {
+      if (local.isNotEmpty) return local;
+      rethrow;
     }
-    final data = jsonDecode(response.body);
-    if (data is! List) return [];
-    return data
-        .whereType<Map>()
-        .map((row) {
-          final latitude = double.tryParse('${row['lat']}');
-          final longitude = double.tryParse('${row['lon']}');
-          final label = '${row['display_name'] ?? ''}'.trim();
-          if (latitude == null ||
-              longitude == null ||
-              label.isEmpty ||
-              !latitude.isFinite ||
-              !longitude.isFinite ||
-              latitude.abs() > 90 ||
-              longitude.abs() > 180) {
-            return null;
-          }
-          return VenuePick(label, latitude, longitude);
-        })
-        .whereType<VenuePick>()
-        .toList();
+  }
+
+  List<VenuePick> _mergePlaces(List<VenuePick> local, List<VenuePick> remote) {
+    final seen = <String>{};
+    final merged = <VenuePick>[];
+    for (final place in [...local, ...remote]) {
+      final key = place.label.toLowerCase();
+      if (!seen.add(key)) continue;
+      merged.add(place);
+      if (merged.length >= 8) break;
+    }
+    return merged;
   }
 }
 
@@ -107,6 +139,7 @@ class VenuePicker extends StatefulWidget {
 class _VenuePickerState extends State<VenuePicker> {
   late final TextEditingController search;
   final cache = <String, List<VenuePick>>{};
+  Timer? _debounce;
   DateTime? lastSearch;
   int requestId = 0;
   bool searching = false;
@@ -125,6 +158,7 @@ class _VenuePickerState extends State<VenuePicker> {
 
   @override
   void dispose() {
+    _debounce?.cancel();
     search.dispose();
     super.dispose();
   }
@@ -132,14 +166,21 @@ class _VenuePickerState extends State<VenuePicker> {
   void _onQuery(String value) {
     requestId++;
     widget.onQueryChanged?.call();
+    _debounce?.cancel();
     setState(() {
       results = [];
       error = null;
       searching = false;
     });
+    final query = value.trim();
+    if (query.length < 3) return;
+    _debounce = Timer(const Duration(milliseconds: 450), () {
+      if (!mounted) return;
+      _submitSearch(fromTyping: true);
+    });
   }
 
-  void _submitSearch() {
+  void _submitSearch({bool fromTyping = false}) {
     final query = search.text.trim();
     if (query.length < 3) {
       setState(
@@ -159,7 +200,8 @@ class _VenuePickerState extends State<VenuePicker> {
       return;
     }
     final now = DateTime.now();
-    if (lastSearch != null &&
+    if (!fromTyping &&
+        lastSearch != null &&
         now.difference(lastSearch!) < const Duration(seconds: 1)) {
       return;
     }
@@ -239,37 +281,52 @@ class _VenuePickerState extends State<VenuePicker> {
     ),
   );
 
-  Widget _map() => FlutterMap(
-    key: ValueKey('${widget.latitude},${widget.longitude}'),
-    options: MapOptions(
-      initialCenter: LatLng(widget.latitude!, widget.longitude!),
-      initialZoom: 15,
-      interactionOptions: const InteractionOptions(
-        flags: InteractiveFlag.all & ~InteractiveFlag.rotate,
+  Widget _map() {
+    final point = LatLng(widget.latitude!, widget.longitude!);
+    return FlutterMap(
+      key: ValueKey('${widget.latitude},${widget.longitude}'),
+      options: MapOptions(
+        initialCenter: point,
+        initialZoom: 15,
+        interactionOptions: const InteractionOptions(
+          flags: InteractiveFlag.all & ~InteractiveFlag.rotate,
+        ),
       ),
-    ),
-    children: [
-      TileLayer(
-        urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-        userAgentPackageName: 'com.planmyparty.plan_my_party',
-      ),
-      MarkerLayer(
-        markers: [
-          Marker(
-            point: LatLng(widget.latitude!, widget.longitude!),
-            width: 36,
-            height: 36,
-            alignment: Alignment.topCenter,
-            child: const Icon(
-              Icons.location_on,
-              color: AppColors.purple,
-              size: 36,
+      children: [
+        TileLayer(
+          urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+          userAgentPackageName: 'com.planmyparty.plan_my_party',
+        ),
+        CircleLayer(
+          circles: [
+            CircleMarker(
+              point: point,
+              radius: 220,
+              useRadiusInMeter: true,
+              color: AppColors.purple.withValues(alpha: .18),
+              borderColor: AppColors.purple,
+              borderStrokeWidth: 2,
             ),
-          ),
-        ],
-      ),
-    ],
-  );
+          ],
+        ),
+        MarkerLayer(
+          markers: [
+            Marker(
+              point: point,
+              width: 36,
+              height: 36,
+              alignment: Alignment.topCenter,
+              child: const Icon(
+                Icons.location_on,
+                color: AppColors.purple,
+                size: 36,
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
 
   Widget _placeholder() => Container(
     alignment: Alignment.center,
@@ -293,14 +350,14 @@ class _VenuePickerState extends State<VenuePicker> {
         textInputAction: TextInputAction.search,
         decoration: InputDecoration(
           labelText: 'Event Location',
-          hintText: 'Enter a venue and city, then search',
+          hintText: 'Start typing a venue, area, or city',
           prefixIcon: const Icon(
             Icons.location_on_outlined,
             color: AppColors.purple,
           ),
           suffixIcon: IconButton(
             tooltip: 'Search locations',
-            onPressed: searching ? null : _submitSearch,
+            onPressed: searching ? null : () => _submitSearch(),
             icon: const Icon(Icons.search, color: AppColors.purple),
           ),
         ),
@@ -320,7 +377,20 @@ class _VenuePickerState extends State<VenuePicker> {
         Expanded(
           child: ListView(
             padding: EdgeInsets.zero,
-            children: results.take(4).map(_resultCard).toList(),
+            children: [
+              const Padding(
+                padding: EdgeInsets.only(bottom: 8),
+                child: Text(
+                  'Suggestions',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.purple,
+                  ),
+                ),
+              ),
+              ...results.take(5).map(_resultCard),
+            ],
           ),
         )
       else ...[
@@ -373,14 +443,14 @@ class _VenuePickerState extends State<VenuePicker> {
         textInputAction: TextInputAction.search,
         decoration: InputDecoration(
           labelText: 'Event Location',
-          hintText: 'Enter a venue and city, then search',
+          hintText: 'Start typing a venue, area, or city',
           prefixIcon: const Icon(
             Icons.location_on_outlined,
             color: AppColors.purple,
           ),
           suffixIcon: IconButton(
             tooltip: 'Search locations',
-            onPressed: searching ? null : _submitSearch,
+            onPressed: searching ? null : () => _submitSearch(),
             icon: const Icon(Icons.search, color: AppColors.purple),
           ),
         ),
