@@ -11,12 +11,34 @@ abstract final class AppColors {
   static const line = Color(0xffECE9EF),
       green = Color(0xff2C7B63),
       rose = Color(0xffF5D6D2);
+
+  /// Soft premium gradient used as the background on every screen.
+  static const appGradient = LinearGradient(
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: [Color(0xffF2EBFB), Color(0xffFBF8FF), Color(0xffF6EAF6)],
+  );
+
+  /// The same gradient with a slight transparency, laid over the backdrop
+  /// photo so the image shows through softly while text stays readable.
+  static const backdropVeil = LinearGradient(
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: [Color(0xE8F2EBFB), Color(0xF0FBF8FF), Color(0xE8F6EAF6)],
+  );
+
+  /// Gradient used by primary action buttons.
+  static const buttonGradient = LinearGradient(
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: [Color(0xff8A5FEB), purple, deep],
+  );
 }
 
 ThemeData partyTheme() => ThemeData(
   useMaterial3: true,
   fontFamily: 'DMSans',
-  scaffoldBackgroundColor: AppColors.paper,
+  scaffoldBackgroundColor: Colors.transparent,
   colorScheme: ColorScheme.fromSeed(
     seedColor: AppColors.purple,
     primary: AppColors.purple,
@@ -52,7 +74,7 @@ ThemeData partyTheme() => ThemeData(
     bodySmall: TextStyle(fontSize: 11, height: 1.6, color: AppColors.muted),
   ),
   appBarTheme: const AppBarTheme(
-    backgroundColor: AppColors.paper,
+    backgroundColor: Colors.transparent,
     surfaceTintColor: Colors.transparent,
     centerTitle: false,
     titleTextStyle: TextStyle(

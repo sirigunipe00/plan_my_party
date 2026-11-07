@@ -7,6 +7,11 @@ const fulfillmentHubLatitude = 17.3850;
 const fulfillmentHubLongitude = 78.4867;
 
 class OrderCharges {
+  /// GST is charged exactly once, on the tax-exclusive taxable amount
+  /// (items + service charges). Catalog prices never include tax, so tax is
+  /// never applied twice.
+  static const gstRate = 0.18;
+
   final double items;
   final double delivery;
   final double pickup;
@@ -21,7 +26,9 @@ class OrderCharges {
   });
 
   double get extras => delivery + pickup + setup;
-  double get grandTotal => items + extras;
+  double get taxable => items + extras;
+  double get gst => _round(taxable * gstRate, digits: 2);
+  double get grandTotal => taxable + gst;
 }
 
 double distanceKmBetween(

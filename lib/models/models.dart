@@ -158,10 +158,12 @@ class ServiceLine {
 
 class EventPlan {
   String id, name, type, start, end, location, description, status;
+  String flatNumber, blockName, landmark;
   DateTime date, created;
   int guests;
   double budget;
   double deliveryCharge, pickupCharge, setupCharge, distanceKm;
+  double gstAmount;
   String vendorOrderId, vendorStatus, vendorName;
   bool sample, occasionChosen, paid;
   double? latitude, longitude;
@@ -179,6 +181,9 @@ class EventPlan {
     this.start = '18:00',
     this.end = '23:00',
     this.location = 'Banjara Hills, Hyderabad',
+    this.flatNumber = '',
+    this.blockName = '',
+    this.landmark = '',
     this.description = '',
     this.guests = 150,
     this.budget = 100000,
@@ -186,6 +191,7 @@ class EventPlan {
     this.pickupCharge = 0,
     this.setupCharge = 0,
     this.distanceKm = 0,
+    this.gstAmount = 0,
     this.vendorOrderId = '',
     this.vendorStatus = '',
     this.vendorName = '',
@@ -223,7 +229,8 @@ class EventPlan {
        balloons = balloons ?? BalloonSpec();
   double get itemsTotal => lines.fold(0, (sum, line) => sum + line.total);
   double get extrasTotal => deliveryCharge + pickupCharge + setupCharge;
-  double get orderTotal => itemsTotal + extrasTotal;
+  double get taxableAmount => itemsTotal + extrasTotal;
+  double get orderTotal => taxableAmount + gstAmount;
   void applyLines() {
     if (lines.isEmpty) return;
     budget = orderTotal > 0 ? orderTotal : itemsTotal;
@@ -243,6 +250,15 @@ class EventPlan {
       : quotes.isNotEmpty
       ? '${quotes.length} sample quotes'
       : 'Planning started';
+  String get fullLocation {
+    final parts = <String>[
+      if (flatNumber.trim().isNotEmpty) flatNumber.trim(),
+      if (blockName.trim().isNotEmpty) blockName.trim(),
+      location.trim(),
+      if (landmark.trim().isNotEmpty) landmark.trim(),
+    ];
+    return parts.join(', ');
+  }
   String? validateBasics() {
     if (name.trim().isEmpty) return 'Give your celebration a name.';
     if (location.trim().isEmpty) return 'Add a venue or an area.';
@@ -312,6 +328,9 @@ class EventPlan {
     'start': start,
     'end': end,
     'location': location,
+    'flatNumber': flatNumber,
+    'blockName': blockName,
+    'landmark': landmark,
     'description': description,
     'guests': guests,
     'budget': budget,
@@ -319,6 +338,7 @@ class EventPlan {
     'pickupCharge': pickupCharge,
     'setupCharge': setupCharge,
     'distanceKm': distanceKm,
+    'gstAmount': gstAmount,
     'vendorOrderId': vendorOrderId,
     'vendorStatus': vendorStatus,
     'vendorName': vendorName,
@@ -345,6 +365,9 @@ class EventPlan {
     start: j['start'] as String? ?? '18:00',
     end: j['end'] as String? ?? '23:00',
     location: j['location'] as String? ?? '',
+    flatNumber: j['flatNumber'] as String? ?? '',
+    blockName: j['blockName'] as String? ?? '',
+    landmark: j['landmark'] as String? ?? '',
     description: j['description'] as String? ?? '',
     guests: j['guests'] as int? ?? 150,
     budget: (j['budget'] as num? ?? 100000).toDouble(),
@@ -352,6 +375,7 @@ class EventPlan {
     pickupCharge: (j['pickupCharge'] as num? ?? 0).toDouble(),
     setupCharge: (j['setupCharge'] as num? ?? 0).toDouble(),
     distanceKm: (j['distanceKm'] as num? ?? 0).toDouble(),
+    gstAmount: (j['gstAmount'] as num? ?? 0).toDouble(),
     vendorOrderId: j['vendorOrderId'] as String? ?? '',
     vendorStatus: j['vendorStatus'] as String? ?? '',
     vendorName: j['vendorName'] as String? ?? '',

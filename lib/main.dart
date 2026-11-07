@@ -69,6 +69,23 @@ class _PartyAppState extends State<PartyApp> with WidgetsBindingObserver {
       debugShowCheckedModeBanner: false,
       scaffoldMessengerKey: messenger,
       theme: partyTheme(),
+      builder: (context, child) => Stack(
+        children: [
+          const Positioned.fill(
+            child: Image(
+              image: AssetImage('assets/images/celebration.jpg'),
+              fit: BoxFit.cover,
+              alignment: Alignment.topCenter,
+            ),
+          ),
+          const Positioned.fill(
+            child: DecoratedBox(
+              decoration: BoxDecoration(gradient: AppColors.backdropVeil),
+            ),
+          ),
+          if (child != null) child,
+        ],
+      ),
       home: widget.store.onboarded
           ? HomeScreen(store: widget.store)
           : WelcomeScreen(store: widget.store),

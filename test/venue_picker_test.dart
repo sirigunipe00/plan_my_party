@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:plan_my_party/theme/app_theme.dart';
+import 'package:plan_my_party/widgets/common.dart';
 import 'package:plan_my_party/widgets/venue_picker.dart';
 
 void main() {
@@ -92,7 +93,7 @@ void main() {
     );
     await tester.tap(find.byTooltip('Search locations'));
     await tester.pump();
-    await tester.tap(find.text('New venue, Hyderabad'));
+    await tester.tap(find.widgetWithText(PartyCard, 'New venue'));
     await tester.pumpAndSettle();
     expect(picked!.latitude, 17.4);
     expect(picked!.label, 'New venue, Hyderabad');

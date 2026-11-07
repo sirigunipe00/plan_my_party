@@ -42,6 +42,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
 
   late EventPlan draft;
   late final VendorOrderApi vendorApi;
+  late final TextEditingController flatCtrl, blockCtrl, landmarkCtrl;
   int step = 0;
   bool submitting = false;
   bool pollingVendor = false;
@@ -63,11 +64,17 @@ class _PlannerScreenState extends State<PlannerScreen> {
       draft = existing;
     }
     draft.normalizeLines();
+    flatCtrl = TextEditingController(text: draft.flatNumber);
+    blockCtrl = TextEditingController(text: draft.blockName);
+    landmarkCtrl = TextEditingController(text: draft.landmark);
   }
 
   @override
   void dispose() {
     vendorPoll?.cancel();
+    flatCtrl.dispose();
+    blockCtrl.dispose();
+    landmarkCtrl.dispose();
     super.dispose();
   }
 
@@ -90,7 +97,8 @@ class _PlannerScreenState extends State<PlannerScreen> {
       ..deliveryCharge = next.delivery
       ..pickupCharge = next.pickup
       ..setupCharge = next.setup
-      ..distanceKm = next.distanceKm;
+      ..distanceKm = next.distanceKm
+      ..gstAmount = next.gst;
   }
 
   int get selectedUnits =>
@@ -103,7 +111,6 @@ class _PlannerScreenState extends State<PlannerScreen> {
       if (!didPop && step > 0) _go(step - 1);
     },
     child: Scaffold(
-      resizeToAvoidBottomInset: false,
       appBar: AppBar(
         automaticallyImplyLeading: true,
         leading: IconButton(
@@ -283,7 +290,8 @@ class _PlannerScreenState extends State<PlannerScreen> {
 
   Widget _dateTime() => Column(
     key: const ValueKey('step-date-time'),
-    crossAxisAlignment: CrossAxisAlignment.start,
+    mainAxisAlignment: MainAxisAlignment.center,
+    crossAxisAlignment: CrossAxisAlignment.stretch,
     children: [
       _heading('Date & time', 'When is the party?'),
       _picker(
@@ -316,21 +324,6 @@ class _PlannerScreenState extends State<PlannerScreen> {
             ),
           ),
         ],
-      ),
-      Expanded(
-        child: Padding(
-          padding: const EdgeInsets.only(top: 18),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(22),
-            child: SizedBox.expand(
-              child: Image.asset(
-                'assets/images/celebration.jpg',
-                fit: BoxFit.cover,
-                semanticLabel: 'Celebration',
-              ),
-            ),
-          ),
-        ),
       ),
     ],
   );
@@ -434,7 +427,79 @@ class _PlannerScreenState extends State<PlannerScreen> {
           },
         ),
       ),
+      if (draft.latitude != null && draft.longitude != null) ...[
+        gap12,
+        _addressDetails(),
+      ],
     ],
+  );
+
+  Widget _addressDetails() => PartyCard(
+    padding: const EdgeInsets.all(14),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Address details',
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w700,
+            color: AppColors.ink,
+          ),
+        ),
+        gap12,
+        Row(
+          children: [
+            Expanded(
+              child: _detailField(
+                flatCtrl,
+                'Flat / door no.',
+                'e.g. 402',
+                (value) => draft.flatNumber = value,
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: _detailField(
+                blockCtrl,
+                'Block / tower',
+                'e.g. Block B',
+                (value) => draft.blockName = value,
+              ),
+            ),
+          ],
+        ),
+        gap12,
+        _detailField(
+          landmarkCtrl,
+          'Landmark or extra details (optional)',
+          'e.g. Near city mall, 3rd floor',
+          (value) => draft.landmark = value,
+          action: TextInputAction.done,
+        ),
+      ],
+    ),
+  );
+
+  Widget _detailField(
+    TextEditingController controller,
+    String label,
+    String hint,
+    ValueChanged<String> onChanged, {
+    TextInputAction action = TextInputAction.next,
+  }) => TextField(
+    controller: controller,
+    textInputAction: action,
+    decoration: InputDecoration(
+      labelText: label,
+      hintText: hint,
+      isDense: true,
+      contentPadding: const EdgeInsets.all(12),
+    ),
+    onChanged: (value) {
+      onChanged(value);
+      save();
+    },
   );
 
   Widget _categories() => Column(
@@ -579,7 +644,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      draft.location,
+                      draft.fullLocation,
                       style: const TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.w700,
@@ -615,6 +680,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
                     InfoPair('Delivery charge', money(next.delivery)),
                     InfoPair('Pickup charge', money(next.pickup)),
                     InfoPair('Setup charge', money(next.setup)),
+                    InfoPair('GST (18%)', money(next.gst)),
                     const Divider(height: 20),
                     InfoPair('Grand total', money(next.grandTotal)),
                   ],
@@ -718,6 +784,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
             InfoPair('Vendor', draft.vendorName),
             InfoPair('Items', money(draft.itemsTotal)),
             InfoPair('Delivery + pickup + setup', money(draft.extrasTotal)),
+            InfoPair('GST (18%)', money(draft.gstAmount)),
             const Divider(height: 20),
             InfoPair('Amount due', money(draft.orderTotal)),
           ],
@@ -805,7 +872,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
     try {
       final order = await vendorApi.submit(
         eventName: draft.name,
-        location: draft.location,
+        location: draft.fullLocation,
         latitude: draft.latitude!,
         longitude: draft.longitude!,
         amount: draft.orderTotal,
@@ -956,11 +1023,12 @@ class BookingConfirmationScreen extends StatelessWidget {
                   child: Column(
                     children: [
                       InfoPair('When', '${dateLabel(event.date)} · ${timeLabel(event.start)}'),
-                      InfoPair('Where', event.location),
+                      InfoPair('Where', event.fullLocation),
                       InfoPair('Items', money(event.itemsTotal)),
                       InfoPair('Delivery', money(event.deliveryCharge)),
                       InfoPair('Pickup', money(event.pickupCharge)),
                       InfoPair('Setup', money(event.setupCharge)),
+                      InfoPair('GST (18%)', money(event.gstAmount)),
                       const Divider(height: 20),
                       InfoPair('Paid', money(event.orderTotal)),
                     ],

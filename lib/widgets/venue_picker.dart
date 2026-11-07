@@ -29,10 +29,19 @@ class OpenMapSearch {
     this.includeIndiaCatalog = true,
   });
 
-  Future<List<VenuePick>> search(String query) async {
+  Future<List<VenuePick>> search(
+    String query, {
+    double? nearLat,
+    double? nearLon,
+  }) async {
     final cleaned = query.trim();
     final local = includeIndiaCatalog
-        ? searchIndiaPlaces(cleaned, limit: 8)
+        ? searchIndiaPlaces(
+            cleaned,
+            limit: 8,
+            nearLat: nearLat,
+            nearLon: nearLon,
+          )
         : const <VenuePick>[];
 
     final enriched = cleaned.toLowerCase().contains('india')
@@ -41,10 +50,15 @@ class OpenMapSearch {
     final uri = Uri.parse(endpoint).replace(
       queryParameters: {
         'q': enriched,
-        'limit': '8',
+        'limit': '10',
         'format': 'jsonv2',
         'addressdetails': '1',
         'countrycodes': 'in',
+        // Bias (without restricting) results towards the area around the
+        // current pin, so nearby matches rank first.
+        if (nearLat != null && nearLon != null)
+          'viewbox':
+              '${nearLon - 0.6},${nearLat + 0.6},${nearLon + 0.6},${nearLat - 0.6}',
       },
     );
     try {
@@ -91,23 +105,36 @@ class OpenMapSearch {
                 })
                 .whereType<VenuePick>()
                 .toList();
-      return _mergePlaces(local, remote);
+      return _mergePlaces(local, remote, nearLat: nearLat, nearLon: nearLon);
     } catch (_) {
       if (local.isNotEmpty) return local;
       rethrow;
     }
   }
 
-  List<VenuePick> _mergePlaces(List<VenuePick> local, List<VenuePick> remote) {
+  List<VenuePick> _mergePlaces(
+    List<VenuePick> local,
+    List<VenuePick> remote, {
+    double? nearLat,
+    double? nearLon,
+  }) {
     final seen = <String>{};
     final merged = <VenuePick>[];
     for (final place in [...local, ...remote]) {
       final key = place.label.toLowerCase();
       if (!seen.add(key)) continue;
       merged.add(place);
-      if (merged.length >= 8) break;
     }
-    return merged;
+    if (nearLat != null && nearLon != null) {
+      double distance(VenuePick place) {
+        final dLat = place.latitude - nearLat;
+        final dLon = place.longitude - nearLon;
+        return dLat * dLat + dLon * dLon;
+      }
+
+      merged.sort((a, b) => distance(a).compareTo(distance(b)));
+    }
+    return merged.take(8).toList();
   }
 }
 
@@ -138,6 +165,7 @@ class VenuePicker extends StatefulWidget {
 
 class _VenuePickerState extends State<VenuePicker> {
   late final TextEditingController search;
+  static const _searcher = OpenMapSearch();
   final cache = <String, List<VenuePick>>{};
   Timer? _debounce;
   DateTime? lastSearch;
@@ -145,6 +173,7 @@ class _VenuePickerState extends State<VenuePicker> {
   bool searching = false;
   String? error;
   List<VenuePick> results = [];
+  double? _focusLat, _focusLon;
 
   @override
   void initState() {
@@ -154,6 +183,8 @@ class _VenuePickerState extends State<VenuePicker> {
           ? widget.location
           : '',
     );
+    _focusLat = widget.latitude;
+    _focusLon = widget.longitude;
   }
 
   @override
@@ -217,9 +248,10 @@ class _VenuePickerState extends State<VenuePicker> {
 
   Future<void> _search(String query, int id) async {
     try {
-      final places = await (widget.lookup ?? const OpenMapSearch().search)(
-        query,
-      );
+      final lookup = widget.lookup;
+      final places = await (lookup != null
+          ? lookup(query)
+          : _searcher.search(query, nearLat: _focusLat, nearLon: _focusLon));
       if (!mounted) return;
       cache[query.toLowerCase()] = places;
       if (id != requestId) return;
@@ -242,6 +274,8 @@ class _VenuePickerState extends State<VenuePicker> {
   void _select(VenuePick place) {
     requestId++;
     search.text = place.label;
+    _focusLat = place.latitude;
+    _focusLon = place.longitude;
     setState(() {
       results = [];
       searching = false;
@@ -251,35 +285,59 @@ class _VenuePickerState extends State<VenuePicker> {
     FocusScope.of(context).unfocus();
   }
 
-  Widget _resultCard(VenuePick place) => Padding(
-    padding: const EdgeInsets.only(bottom: 8),
-    child: PartyCard(
-      padding: const EdgeInsets.all(12),
-      onTap: () => _select(place),
-      child: Row(
-        children: [
-          const Icon(
-            Icons.location_on_outlined,
-            color: AppColors.purple,
-            size: 20,
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              place.label,
-              maxLines: widget.fill ? 2 : null,
-              overflow: widget.fill ? TextOverflow.ellipsis : null,
-              style: const TextStyle(
-                fontSize: 12,
-                color: AppColors.ink,
-                fontWeight: FontWeight.w600,
+  Widget _resultCard(VenuePick place) {
+    final comma = place.label.indexOf(',');
+    final title = comma == -1 ? place.label : place.label.substring(0, comma);
+    final subtitle = comma == -1
+        ? ''
+        : place.label.substring(comma + 1).trim();
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: PartyCard(
+        padding: const EdgeInsets.all(12),
+        onTap: () => _select(place),
+        child: Row(
+          children: [
+            const Icon(
+              Icons.location_on_outlined,
+              color: AppColors.purple,
+              size: 20,
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: AppColors.ink,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  if (subtitle.isNotEmpty) ...[
+                    const SizedBox(height: 2),
+                    Text(
+                      subtitle,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 11,
+                        color: AppColors.muted,
+                      ),
+                    ),
+                  ],
+                ],
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
-    ),
-  );
+    );
+  }
 
   Widget _map() {
     final point = LatLng(widget.latitude!, widget.longitude!);
@@ -328,19 +386,6 @@ class _VenuePickerState extends State<VenuePicker> {
     );
   }
 
-  Widget _placeholder() => Container(
-    alignment: Alignment.center,
-    decoration: BoxDecoration(
-      color: AppColors.lavender,
-      borderRadius: BorderRadius.circular(18),
-    ),
-    child: const Text(
-      'Search, then tap a place to pin it on the map.',
-      textAlign: TextAlign.center,
-      style: TextStyle(fontSize: 12, color: AppColors.deep),
-    ),
-  );
-
   Widget _fillBuild(bool hasPin) => Column(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
@@ -350,7 +395,7 @@ class _VenuePickerState extends State<VenuePicker> {
         textInputAction: TextInputAction.search,
         decoration: InputDecoration(
           labelText: 'Event Location',
-          hintText: 'Start typing a venue, area, or city',
+          hintText: 'Search flat no, building, area or landmark',
           prefixIcon: const Icon(
             Icons.location_on_outlined,
             color: AppColors.purple,
@@ -394,14 +439,15 @@ class _VenuePickerState extends State<VenuePicker> {
           ),
         )
       else ...[
-        Expanded(
-          child: hasPin
-              ? ClipRRect(
-                  borderRadius: BorderRadius.circular(18),
-                  child: _map(),
-                )
-              : _placeholder(),
-        ),
+        if (hasPin)
+          Expanded(
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(18),
+              child: _map(),
+            ),
+          )
+        else
+          const Spacer(),
         if (hasPin) ...[
           gap8,
           Text(
@@ -443,7 +489,7 @@ class _VenuePickerState extends State<VenuePicker> {
         textInputAction: TextInputAction.search,
         decoration: InputDecoration(
           labelText: 'Event Location',
-          hintText: 'Start typing a venue, area, or city',
+          hintText: 'Search flat no, building, area or landmark',
           prefixIcon: const Icon(
             Icons.location_on_outlined,
             color: AppColors.purple,
@@ -470,9 +516,7 @@ class _VenuePickerState extends State<VenuePicker> {
         ClipRRect(
           borderRadius: BorderRadius.circular(18),
           child: SizedBox(height: 180, child: _map()),
-        )
-      else
-        SizedBox(height: 92, child: _placeholder()),
+        ),
       if (widget.latitude != null && widget.longitude != null) ...[
         gap8,
         Text(

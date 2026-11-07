@@ -1,6 +1,9 @@
+import 'dart:math' as math;
+
 import '../widgets/venue_picker.dart';
 
-/// Curated India venues and localities for door / building / area search.
+/// Curated India venues, apartments, blocks, door numbers, and landmarks for
+/// door / building / area search.
 /// Used alongside OpenStreetMap Nominatim (countrycodes=in).
 const indiaPlaces = <VenuePick>[
   VenuePick('Door No. 12-2-418, Asif Nagar, Hyderabad, Telangana', 17.3850, 78.4562),
@@ -46,20 +49,54 @@ const indiaPlaces = <VenuePick>[
   VenuePick('Locality: Narsingi, Hyderabad, Telangana', 17.3855, 78.3575),
   VenuePick('Locality: Uppal, Hyderabad, Telangana', 17.3985, 78.5583),
   VenuePick('Locality: Alwal, Secunderabad, Telangana', 17.5030, 78.5070),
+  // Apartments, blocks and flats.
+  VenuePick('Flat 403, Block C, Aparna Sarovar, Nallagandla, Hyderabad', 17.4449, 78.3087),
+  VenuePick('Tower 5, My Home Avatar, Narsingi, Hyderabad', 17.3920, 78.3650),
+  VenuePick('Block B, Janapriya Nile Valley, Miyapur, Hyderabad', 17.4906, 78.3491),
+  VenuePick('Aparna CyberZon, Nallagandla, Hyderabad', 17.4540, 78.3090),
+  VenuePick('Flat 1204, Brigade Gateway, Malleshwaram, Bengaluru', 13.0106, 77.5550),
+  VenuePick('Prestige Shantiniketan, Block A, Whitefield, Bengaluru', 12.9895, 77.7280),
+  VenuePick('Sobha Dream Acres, Varthur, Bengaluru', 12.9550, 77.7450),
+  VenuePick('Lodha Splendora, Thane West, Mumbai', 19.2510, 72.9740),
+  VenuePick('Hiranandani Estate, Ghodbunder Road, Thane', 19.2700, 72.9700),
+  VenuePick('DLF Phase 3, Block U, Gurugram, Haryana', 28.4930, 77.0930),
+  VenuePick('Sector 50, Noida, Uttar Pradesh', 28.5730, 77.3700),
+  VenuePick('Godrej Woodsman Estate, Hebbal, Bengaluru', 13.0460, 77.5930),
+  // Landmarks.
+  VenuePick('Landmark: Inorbit Mall, Madhapur, Hyderabad', 17.4344, 78.3866),
+  VenuePick('Landmark: Sarath City Capital Mall, Kondapur, Hyderabad', 17.4570, 78.3690),
+  VenuePick('Landmark: Cyber Towers, Hitech City, Hyderabad', 17.4500, 78.3808),
+  VenuePick('Landmark: GVK One Mall, Banjara Hills, Hyderabad', 17.4195, 78.4480),
+  VenuePick('Landmark: Phoenix Marketcity, Whitefield, Bengaluru', 12.9960, 77.6963),
+  VenuePick('Landmark: Marine Drive, Mumbai, Maharashtra', 18.9430, 72.8230),
+  VenuePick('Landmark: India Gate, New Delhi', 28.6129, 77.2295),
+  VenuePick('Landmark: Marina Beach, Chennai, Tamil Nadu', 13.0500, 80.2824),
 ];
 
-List<VenuePick> searchIndiaPlaces(String query, {int limit = 8}) {
-  final tokens = query
-      .toLowerCase()
-      .trim()
-      .split(RegExp(r'\s+'))
-      .where((t) => t.isNotEmpty)
-      .toList();
+String _normalizePlaceText(String value) =>
+    value.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]+'), ' ').trim();
+
+double _distanceScore(VenuePick place, double nearLat, double nearLon) {
+  final dLat = place.latitude - nearLat;
+  final dLon =
+      (place.longitude - nearLon) * math.cos(nearLat * math.pi / 180);
+  return dLat * dLat + dLon * dLon;
+}
+
+List<VenuePick> searchIndiaPlaces(
+  String query, {
+  int limit = 8,
+  double? nearLat,
+  double? nearLon,
+}) {
+  final tokens = _normalizePlaceText(
+    query,
+  ).split(RegExp(r'\s+')).where((t) => t.isNotEmpty).toList();
   if (tokens.isEmpty) return const [];
 
   final scored = <({VenuePick place, int score})>[];
   for (final place in indiaPlaces) {
-    final label = place.label.toLowerCase();
+    final label = _normalizePlaceText(place.label);
     var score = 0;
     for (final token in tokens) {
       if (label.contains(token)) score += token.length > 2 ? 3 : 1;
@@ -69,6 +106,14 @@ List<VenuePick> searchIndiaPlaces(String query, {int limit = 8}) {
     if (tokens.every(label.contains)) score += 10;
     scored.add((place: place, score: score));
   }
-  scored.sort((a, b) => b.score.compareTo(a.score));
+  scored.sort((a, b) {
+    final byScore = b.score.compareTo(a.score);
+    if (byScore != 0 || nearLat == null || nearLon == null) return byScore;
+    return _distanceScore(
+      a.place,
+      nearLat,
+      nearLon,
+    ).compareTo(_distanceScore(b.place, nearLat, nearLon));
+  });
   return scored.take(limit).map((row) => row.place).toList();
 }

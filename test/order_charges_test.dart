@@ -33,6 +33,12 @@ void main() {
     expect(near.delivery, greaterThan(0));
     expect(near.pickup, greaterThan(0));
     expect(near.setup, greaterThan(0));
+    expect(near.taxable, near.items + near.extras);
+    expect(
+      near.gst,
+      closeTo(near.taxable * OrderCharges.gstRate, 0.01),
+    );
+    expect(near.grandTotal, closeTo(near.taxable + near.gst, 0.001));
     expect(far.grandTotal, greaterThan(near.grandTotal));
     expect(far.distanceKm, greaterThan(near.distanceKm));
   });

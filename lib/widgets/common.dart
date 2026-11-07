@@ -122,11 +122,41 @@ class PrimaryButton extends StatelessWidget {
         if (icon != null) ...[const SizedBox(width: 10), Icon(icon, size: 18)],
       ],
     );
+    if (outline) {
+      return SizedBox(
+        width: double.infinity,
+        child: OutlinedButton(onPressed: onPressed, child: child),
+      );
+    }
+    final enabled = onPressed != null;
     return SizedBox(
       width: double.infinity,
-      child: outline
-          ? OutlinedButton(onPressed: onPressed, child: child)
-          : FilledButton(onPressed: onPressed, child: child),
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          gradient: enabled ? AppColors.buttonGradient : null,
+          color: enabled ? null : const Color(0xffE4DEEE),
+          borderRadius: BorderRadius.circular(15),
+        ),
+        child: FilledButton(
+          onPressed: onPressed,
+          style: FilledButton.styleFrom(
+            minimumSize: const Size(0, 52),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(15),
+            ),
+            textStyle: const TextStyle(
+              fontFamily: 'DMSans',
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+            ),
+            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+            backgroundColor: Colors.transparent,
+            disabledBackgroundColor: Colors.transparent,
+            shadowColor: Colors.transparent,
+          ),
+          child: child,
+        ),
+      ),
     );
   }
 }
@@ -204,6 +234,9 @@ class PartyCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Material(
     color: color,
+    elevation: 1,
+    shadowColor: const Color(0x1F382356),
+    surfaceTintColor: Colors.transparent,
     shape: RoundedRectangleBorder(
       borderRadius: BorderRadius.circular(19),
       side: const BorderSide(color: AppColors.line),
@@ -435,7 +468,7 @@ class EventFacts extends StatelessWidget {
         dateLabel(event.date),
         '${timeLabel(event.start)} – ${timeLabel(event.end)}',
       ),
-      DetailRow(Icons.location_on_outlined, event.location, 'Event location'),
+      DetailRow(Icons.location_on_outlined, event.fullLocation, 'Event location'),
       DetailRow(
         Icons.people_outline,
         '${event.guests} guests',

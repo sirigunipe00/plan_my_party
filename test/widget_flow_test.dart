@@ -127,6 +127,7 @@ void main() {
     expect(find.text('Order summary'), findsOneWidget);
     expect(find.text('Delivery charge'), findsOneWidget);
     expect(find.text('Setup charge'), findsOneWidget);
+    expect(find.text('GST (18%)'), findsOneWidget);
     await tester.tap(find.text('Request vendor approval'));
     await tester.pump(); // show vendor pending
     expect(find.byKey(const ValueKey('step-vendor')), findsOneWidget);
@@ -164,6 +165,14 @@ void main() {
     expect(find.text('Booking confirmed'), findsOneWidget);
     expect(store.events.first.paid, isTrue);
     expect(store.events.first.deliveryCharge, greaterThan(0));
+    expect(store.events.first.gstAmount, greaterThan(0));
+    expect(
+      store.events.first.orderTotal,
+      closeTo(
+        store.events.first.taxableAmount + store.events.first.gstAmount,
+        0.001,
+      ),
+    );
     expect(store.events.first.lines.length, 2);
     expect(tester.takeException(), isNull);
     await tester.pumpWidget(const SizedBox());
